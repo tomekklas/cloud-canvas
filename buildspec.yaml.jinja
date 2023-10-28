@@ -11,6 +11,12 @@ phases:
       - env
       - aws --version
       - bash --version
+      - echo "Installing rain v1.6.0"
+      - curl -LO https://github.com/aws-cloudformation/rain/releases/download/v1.6.0/rain-v1.6.0_linux-amd64.zip
+      - unzip rain-v1.6.0_linux-amd64.zip
+      - sudo mv rain-v1.6.0_linux-amd64/rain /usr/local/bin/
+      - rm -rf rain-v1.6.0_linux-amd64.zip rain-v1.6.0_linux-amd64
+      - rain --version
   pre_build:
     commands:
       - echo "Understanding the environment..."
@@ -77,7 +83,7 @@ phases:
         }
 
         echo "Searching for lambda functions and layers..."
-        find . -type d -regex '.*/lambda/functions/[^/]*$' -or -regex '.*/lambda/layer/[^/]*$' | while read -r dir_path; do
+        find . -type d -regex '.*/lambda/functions/[^/]*$' -or -regex '.*/lambda/layers/[^/]*$' | while read -r dir_path; do
             build_lambda "$dir_path"
         done
 
@@ -87,6 +93,14 @@ phases:
       - |-
         echo "Replacing placeholders"
         sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" $(find . -type f)
+
+      - |-
+        echo "Reformat all non-empty yaml documents"
+        find . -name "*.yaml" | while read -r file; do
+            if [[ -s "$file" && -n "$(cat "$file" | tr -d '[:space:]')" ]]; then
+                rain fmt "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+            fi
+        done
 
       - |-
         echo "Syncing to upload directory"

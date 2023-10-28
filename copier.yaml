@@ -17,13 +17,12 @@ _jinja_extensions:
 # TODO: get branch name as a version number
 
 # Questionnaire
-# TODO" how do I make value required?
 module_name:
   type: str
-  help: Please provide module name
+  help: Choose a descriptive name for the module.
   validator: >-
-      {% if not (module_name | regex_search('^(?! )(.*[^ ])?$')) %}
-      Module name can not start or end with a space.
+      {% if not (module_name | regex_search('^(?! *$)(?!deployment$).+$')) %}
+      Module name can not start or end with a space. "Deployment" word is reserved and can not be used.
       {% endif %}
 
 # TODO: on re-generatin this remembers previous invokation value, not current one 
@@ -65,6 +64,15 @@ common_lambda_layer_name: # TODO: make sure it can be used as a directory name
   when: "{{ include_lambda_scaffolding == True and include_common_lambda_layer == True }}"
   help: Please provide name of the lambda layer function.
   # TODO: add validator
+
+add_deployment_setup:
+  type: str
+  help: Would you like to add scaffolding of deployment setup?
+  # TODO: add validator
+  choices:
+    - Yes
+    - No
+  default: No
 
 owner_name:
   type: str

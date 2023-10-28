@@ -1,8 +1,7 @@
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::LanguageExtensions
-Description: >-
-{% if short_module_description%}  Short project description: {{ short_module_description }} {% endif %}
+Description: >- {% if short_module_description%}  Short project description: {{ short_module_description }} {% endif %}
   Build Id: <<<BUILD_ID>>>
   Version No: <<<VERSION_NUMBER>>>
   CloudCanvas boilerplate version: {{ TEMPLATE_VERSION }}
@@ -64,8 +63,8 @@ Resources:
         - python3.9
       Content: 
         S3Bucket: <<<ARTEFACT_BUCKET>>>
-        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ module_directory_name }}/<<<VERSION_NUMBER>>>/<<<BUILD_ID>>>/project/lambda/layers/{{common_lambda_layer_name | slug}}.zip
-      Description: {{ project_name }} - Common Lambda Layer
+        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ module_directory_name }}/<<<VERSION_NUMBER>>>/<<<BUILD_ID>>>/project/lambda/layers/{{ common_lambda_layer_name|trim|slug }}.zip
+      Description: {{ module_name }} - Common Lambda Layer
   # Common lambda layer
   ############################################
 {% endif %}
@@ -109,12 +108,15 @@ Resources:
   # Generic CloudWatch Logs KMSKey related
   ############################################
 
+{% endif %}
+
 {% set lambda_list = lambda_names.split(",") %}
-{% for lambda_name_raw in lambda_list %}
-{% set trimmed_lambda = lambda_name_raw | trim | title %}
+{% for lambda_name in lambda_list %}
+{% set cleaned_lambda_name = lambda_name|trim|title %}
+{% set cleaned_lambda_slug = lambda_name|trim|slug %}
   ############################################
-  # {{ lambda_name }} Lambda related
-  {{ lambda_name }}LambdaExecutionRole:
+  # {{ cleaned_lambda_name }} Lambda related
+  {{ cleaned_lambda_name }}LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -141,25 +143,24 @@ Resources:
             - logs:PutLogEvents
             Resource: arn:aws:logs:*:*:*
 
-  {{ lambda_name }}Lambda:
+  {{ cleaned_lambda_name }}Lambda:
     Type: AWS::Lambda::Function
     Properties:
-      Description: {{ lambda_name }} Lambda
+      Description: {{ cleaned_lambda_name }} Lambda
       Handler: lambda_function.lambda_handler
       MemorySize: 1024
-      Role: !GetAtt {{ lambda_name }}LambdaExecutionRole.Arn
-      {% if include_common_lambda_layer == True %}
+      Role: !GetAtt {{ cleaned_lambda_name }}LambdaExecutionRole.Arn
       Layers:
+        {% if include_common_lambda_layer == True %}
         - !Ref CommonLambdaLayer
-      {% endif %}
+        {% endif %}
       Runtime: python3.11
       Timeout: 90
       Code:
         S3Bucket: <<<ARTEFACT_BUCKET>>>
-        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ module_directory_name }}/<<<VERSION_NUMBER>>>/<<<BUILD_ID>>>/project/lambda/functions/{{ lambda_name }}.zip
+        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ module_directory_name }}/<<<VERSION_NUMBER>>>/<<<BUILD_ID>>>/project/lambda/functions/{{ cleaned_lambda_slug }}.zip
 
   # {{ lambda_name | title }} Lambda related
   ############################################
 {% endfor %}
 
-{% endif %}
