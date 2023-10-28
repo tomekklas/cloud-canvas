@@ -1,0 +1,110 @@
+# copier.yml
+
+_min_copier_version: 8.3.0
+
+_exclude:
+  - notes.txt
+  - .git*
+  - copier.yaml
+
+_jinja_extensions:
+    - jinja2_slug.SlugExtension
+    - jinja2_time.TimeExtension
+
+# TODO: how do I create constants??
+# _defaults:
+#   TEMPLATE_VERSION: "1.0.0"
+# TODO: get branch name as a version number
+
+# Questionnaire
+# TODO" how do I make value required?
+module_name:
+  type: str
+  help: Please provide module name
+  validator: >-
+      {% if not (module_name | regex_search('^(?! )(.*[^ ])?$')) %}
+      Module name can not start or end with a space.
+      {% endif %}
+
+# TODO: on re-generatin this remembers previous invokation value, not current one 
+module_directory_name:
+  type: str
+  default: "{{ module_name | replace(' ', '-') | regex_replace('[^a-zA-Z0-9-]', '') | lower }}"
+  help: Please provide module directory name (suggested based on previous answer)
+  # TODO: add validator
+
+short_module_description:
+  type: str
+  help: Please provide short module description (press Enter to skip)
+  default: ""
+
+include_lambda_scaffolding:
+  help: Would you like to include lambda functions scaffolding?
+  choices:
+    - Yes
+    - No
+  default: No
+
+lambda_names:
+  type: str
+  when: "{{ include_lambda_scaffolding == True }}"
+  help: Please list your lambda names separated by commas.
+  # TODO: add validator
+    # deduplicate names
+
+include_common_lambda_layer:
+  help: Would you like to common lambda layer?
+  when: "{{ include_lambda_scaffolding == True }}"
+  choices:
+    - Yes
+    - No
+  default: Yes
+
+common_lambda_layer_name: # TODO: make sure it can be used as a directory name
+  type: str
+  when: "{{ include_lambda_scaffolding == True and include_common_lambda_layer == True }}"
+  help: Please provide name of the lambda layer function.
+  # TODO: add validator
+
+owner_name:
+  type: str
+  help: Please provide name of the project owner name (press Enter to skip)
+  default: ""
+
+owner_email:
+  type: str
+  help: Please provide name of the project owner email (press Enter to skip)
+  default: ""
+  # TODO: add validator
+
+
+_message_before_copy: |
+    Thank you for generating a project using Cloud Canvas.
+
+    You'll be asked a series of questions whose answers will be used to
+    generate a tailored project for you.
+
+    If modules need to be added at later date, just re-run this command.
+
+_message_after_copy: |
+    Your project "{{ _copier_conf.dst_path }}" has been created successfully!
+
+    Next steps:
+
+    1. Change directory to the project root:
+
+       $ cd {{ _copier_conf.dst_path }}
+
+    2. Read "CONTRIBUING.md" and start coding.
+
+_tasks:
+  - >-
+    # generate lambda directories from blueprint
+    {% if lambda_names %}
+      {% set lambda_list = lambda_names.split(",") %}
+      {% for lambda_name in lambda_list %}
+        cp -rf {{ module_directory_name }}/lambda/functions/blueprint {{ module_directory_name }}/lambda/functions/{{ lambda_name.strip() }}
+      {% endfor %}
+    {% endif %}
+  - >-
+    chmod +x codebuild_build.sh

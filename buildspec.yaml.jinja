@@ -1,0 +1,93 @@
+version: 0.2
+env:
+  shell: bash
+  variables:
+    VERSION_NUMBER: v1
+    PROJECT_SLUG: {{ _copier_conf.dst_path }}
+
+phases:
+  install:
+    commands:
+      - env
+      - aws --version
+      - bash --version
+  pre_build:
+    commands:
+      - echo "Understand the environment"
+      - |-
+        # Check if CODEBUILD_BUILD_ID is set
+        if [ -n "$CODEBUILD_BUILD_ID" ]; then
+            # Retrieve the ARN of the current build
+            BUILD_ARN=$(aws codebuild batch-get-builds --ids $CODEBUILD_BUILD_ID --query 'builds[0].arn' --output text)
+
+            if [ "$BUILD_ARN" != "None" ]; then
+                echo "Running inside actual AWS CodeBuild."
+            else
+                echo "Local CodeBuild container."
+            fi
+        else
+            echo "Not running in a CodeBuild environment."
+        fi
+
+      - echo "Prepare uplod directory"
+      - |-
+        UPLOAD_DIRECTORY=/tmp/upload
+        mkdir -p ${UPLOAD_DIRECTORY}
+        echo "Upload Directory " ${UPLOAD_DIRECTORY}
+
+  build:
+    commands:
+      - BUILD_ID=`cat /proc/sys/kernel/random/uuid`
+      - echo ${BUILD_ID}
+      - echo Build started on `date`
+      - echo "Build and package function"
+      - |-
+        echo "Looking for lambda functions and layers"
+
+        function build_lambda() {
+          local LAMBDA_DIR=$1
+          echo "build lambda " $LAMBDA_DIR
+
+          mkdir -p "${UPLOAD_DIRECTORY}/${LAMBDA_DIR}/"
+          cd "${CODEBUILD_SRC_DIR}/${LAMBDA_DIR}/"
+
+          if [[ -f requirements.txt ]]; then
+            echo "Installing dependencies..."
+            pip install -r requirements.txt -t lib
+          else
+            echo "No requirements.txt found for ${LAMBDA_DIR}"
+          fi
+
+          ls -al
+
+          if find ./lib -mindepth 1 -maxdepth 1 | read; then
+            echo "Zipping deployment package..."
+            pushd lib
+            zip -r9 ../$(basename "$LAMBDA_DIR").zip .
+            popd
+          else
+            echo "No deployment package to zip..."
+          fi
+
+          zip -g "$(basename "$LAMBDA_DIR").zip" lambda_function.py
+          mv "$(basename "$LAMBDA_DIR").zip" "${UPLOAD_DIRECTORY}/${LAMBDA_DIR}/"
+
+        }
+
+        find . -type d -regex '.*/lambda/functions/[^/]*$' -or -regex '.*/lambda/layer/[^/]*$' | while read -r dir_path; do
+            echo "Processing Lambda in directory: $dir_path"
+            build_lambda "$dir_path"
+        done
+
+        echo Display upload directory ${UPLOAD_DIRECTORY}
+        find . ${UPLOAD_DIRECTORY} -type f
+
+      - |-
+        echo "Uploading artefacts";
+        aws s3 cp --recursive ${UPLOAD_DIRECTORY} s3://deployment-idea-test-bucket/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/
+
+
+artifacts:
+  discard-paths: no
+  base-directory: ${CODEBUILD_SRC_DIR}
+  files: ${SOURCE_PATH}/**
