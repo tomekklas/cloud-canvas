@@ -121,7 +121,7 @@ _tasks:
     {% if lambda_names %}
       {% set lambda_list = lambda_names.split(",") %}
       {% for lambda_name in lambda_list %}
-        cp -rf {{ module_directory_name }}/lambda/functions/blueprint {{ module_directory_name }}/lambda/functions/{{ lambda_name.strip() }}
+        cp -rf {{ module_directory_name }}/lambda/functions/blueprint {{ module_directory_name }}/lambda/functions/{{ lambda_name|trim|slug }}
       {% endfor %}
     {% endif %}
   - >-

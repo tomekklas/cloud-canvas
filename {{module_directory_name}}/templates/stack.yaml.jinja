@@ -75,7 +75,7 @@ Resources:
 
 {% set lambda_list = lambda_names.split(",") %}
 {% for lambda_name in lambda_list %}
-{% set cleaned_lambda_name = lambda_name|trim|title %}
+{% set cleaned_lambda_name = lambda_name|trim|title|replace(" ", "")  %}
 {% set cleaned_lambda_slug = lambda_name|trim|slug %}
   ############################################
   # {{ cleaned_lambda_name }} Lambda related
