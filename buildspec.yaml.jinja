@@ -44,7 +44,7 @@ phases:
         build_lambda() {
           local LAMBDA_PATH="$1"
           local LAMBDA_NAME=$(basename "$LAMBDA_PATH")
-
+          
           echo "Building lambda: $LAMBDA_NAME in $LAMBDA_PATH"
 
           mkdir -p "${UPLOAD_DIRECTORY}/${LAMBDA_PATH}"
@@ -70,7 +70,9 @@ phases:
           fi
 
           zip -g "${LAMBDA_NAME}.zip" lambda_function.py
-          mv "${LAMBDA_NAME}.zip" "${UPLOAD_DIRECTORY}/${LAMBDA_PATH}"
+          rm -rf lib
+          rm -f requirements.txt
+          rm -f lambda_function.py
           popd
         }
 
@@ -81,6 +83,14 @@ phases:
 
         echo "Displaying files in upload directory: $UPLOAD_DIRECTORY"
         find "$UPLOAD_DIRECTORY" -type f
+
+      - |-
+        echo "Replacing placeholders"
+        sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" $(find . -type f)
+
+      - |-
+        echo "Syncing to upload directory"
+        rsync -rva . "${UPLOAD_DIRECTORY}"
 
       - |-
         echo "Uploading artifacts..."
