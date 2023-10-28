@@ -11,10 +11,21 @@ _jinja_extensions:
     - jinja2_slug.SlugExtension
     - jinja2_time.TimeExtension
 
-# TODO: how do I create constants??
-# _defaults:
-#   TEMPLATE_VERSION: "1.0.0"
-# TODO: get branch name as a version number
+# Constants
+TEMPLATE_VERSION:
+  type: str
+  when: false
+  default: v0.1
+
+PRODUCT_VERSION:
+  type: str
+  when: false
+  default: v1
+
+ARTEFACT_BUCKET: # TODO: ask for test and prod buckets? generate when does not exist?
+  type: str
+  when: false
+  default: deployment-idea-test-bucket
 
 # Questionnaire
 module_name:
@@ -66,13 +77,12 @@ common_lambda_layer_name: # TODO: make sure it can be used as a directory name
   # TODO: add validator
 
 add_deployment_setup:
-  type: str
   help: Would you like to add scaffolding of deployment setup?
   # TODO: add validator
   choices:
     - Yes
     - No
-  default: No
+  default: Yes
 
 owner_name:
   type: str
@@ -116,3 +126,5 @@ _tasks:
     {% endif %}
   - >-
     chmod +x codebuild_build.sh
+
+

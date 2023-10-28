@@ -4,6 +4,7 @@ env:
   variables:
     VERSION_NUMBER: v1
     PROJECT_SLUG: {{ _copier_conf.dst_path }}
+    BUCKET_NAME: {{ ARTEFACT_BUCKET }}
 
 phases:
   install:
@@ -93,6 +94,7 @@ phases:
       - |-
         echo "Replacing placeholders"
         sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" $(find . -type f)
+        sed -i "s/<<<ARTEFACT_BUCKET>>>/$ARTEFACT_BUCKET/g" $(find . -type f)
 
       - |-
         echo "Reformat all non-empty yaml documents"
@@ -108,7 +110,16 @@ phases:
 
       - |-
         echo "Uploading artifacts..."
-        aws s3 cp --recursive "$UPLOAD_DIRECTORY" "s3://deployment-idea-test-bucket/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/"
+        aws s3 cp --recursive "$UPLOAD_DIRECTORY" "s3://${BUCKET_NAME}/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/" \
+          --exclude ".copier-answers.yml" \
+          --exclude "buildspec.yaml" \
+          --exclude "codebuild_build.sh"
+
+  post_build:
+    commands:
+      - echo "Post-build steps..."
+      # ... other post_build commands ...
+      - echo "Your CodeBuild process has completed successfully!"
 
 artifacts:
   discard-paths: no
