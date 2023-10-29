@@ -1,34 +1,32 @@
 {
+  "StackPrefix": "testing",
   "Deploy": {
-    "OrgId": {
-      "Include": {
-        "r-cevp": {
-          "Accounts": [
-            821373506894
-          ],
-          "OUs": [
-            "ou-cevp-dlhavf71"
-          ],
-          "Tags": {
-            "Test": "Yes",
-            "Owner": "Alan"
-          }
-        }
-      },
-      "Exclude": {
-        "r-cevp": {
-          "Accounts": [
-            821373506894
-          ],
-          "OUs": [
-            "ou-cevp-dlhavf71"
-          ],
-          "Tags": {
-            "Test": "Yes",
-            "Owner": "Alan"
-          }
-        }
+    "Include": {
+      "Accounts": [
+        821373506894
+      ],
+      "OUs": [
+        "ou-cevp-dlhavf71"
+      ],
+      "Tags": {
+        "Test": "Yes",
+        "Owner": "Alan"
       }
+    },
+    "Exclude": {
+      "Accounts": [
+        821373506890
+      ],
+      "OUs": [
+        "ou-cevp-dlhavf71"
+      ],
+      "Tags": {
+        "Test": "No",
+        "Owner": "No"
+      }
+    },
+    "Parameters": {
+      "Owner": "Tomek"
     }
   }
 }
