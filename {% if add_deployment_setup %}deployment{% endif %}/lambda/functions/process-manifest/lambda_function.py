@@ -1,31 +1,91 @@
+import os
+import json
 import boto3
-import yaml
+import requests
 
-s3 = boto3.client('s3')
+API_KEY = os.environ['ApiKey']
+API_DOMAIN = os.environ['ApiDomain']
+API_VERSION = os.environ['ApiVersion']
+S3_BUCKET = os.environ['ConfigS3Bucket']
+S3_BUCKET_PREFIX = os.environ['ConfigS3Prefix']
+
+s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
-    # Fetching S3 details from event
-    bucket_name = event['bucket_name'] # Name of S3 bucket
-    file_key = event['file_key'] # Key of the file in the S3 bucket
-    param = event.get('param', 'defaults') # Get the environment (defaults, dev, prod, etc.)
+    try:
+        # Extract include and parameters details
+        include_details = event["Deploy"]["Include"]
+        parameters = event["Deploy"]["Parameters"]
+        
+        # Ensure at least one criterion (Accounts, OUs, Tags) is present under Include.
+        if not any(criterion in include_details for criterion in ['Accounts', 'OUs', 'Tags']):
+            raise Exception("At least one criterion (Accounts, OUs, Tags) must be present under Include.")
+        
+        # Gather accounts from Include criteria
+        include_accounts = gather_accounts(include_details)
+        
+        # Extract exclude details if present and gather accounts
+        exclude_accounts = []
+        if "Exclude" in event["Deploy"]:
+            exclude_details = event["Deploy"]["Exclude"]
+            exclude_accounts = gather_accounts(exclude_details)
+        
+        # Exclude the accounts specified in the Exclude section from the Include accounts
+        final_accounts = [account for account in include_accounts if account['id'] not in [excl['id'] for excl in exclude_accounts]]
+        
+        # Remove non-ACTIVE accounts and deduplicate
+        active_accounts = {account['id']: account for account in final_accounts if account['status'] == 'ACTIVE'}.values()
+        
+        # Create files in S3 for each of the resultant active accounts
+        for account in active_accounts:
+            file_content = json.dumps({
+                "AccountId": account['id'],
+                "Parameters": parameters
+            })
+            s3_key = f"{S3_BUCKET_PREFIX}/{context.aws_request_id}/{account['id']}.json"
+            s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=file_content)
+            
+        return {
+            'statusCode': 200,
+            'body': json.dumps('Process completed.')
+        }
+    
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps(str(e))
+        }
 
-    # Retrieve file from S3
-    file_obj = s3.get_object(Bucket=bucket_name, Key=file_key)
-    file_content = file_obj["Body"].read().decode('utf-8')
+def gather_accounts(details):
+    all_accounts = []
 
-    # Parse the YAML
-    config = yaml.safe_load(file_content)
+    # Fetch account details if present
+    if "Accounts" in details:
+        account_ids_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/account_id/{','.join(map(str, details['Accounts']))}"
+        all_accounts += query_api(account_ids_url)
+    
+    # Fetch OUs details if present
+    if "OUs" in details:
+        ou_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/ou/{','.join(details['OUs'])}"
+        all_accounts += query_api(ou_url)
+    
+    # Fetch tags details if present
+    if "Tags" in details:
+        tags_params = ','.join([f"{k}:{v}" for k, v in details["Tags"].items()])
+        tags_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/tags/{tags_params}"
+        all_accounts += query_api(tags_url)
+    
+    return all_accounts
 
-    # Create the configuration object based on 'param'
-    result_config = config.get('defaults', {}).copy()  # Start with defaults
-    environment_config = config.get(param, {})
-    result_config.update(environment_config)  # Overwrite with environment-specific values
-
-    return result_config
-
-
-# {
-#   "bucket_name": "my-config-bucket",
-#   "file_key": "path/to/config.yaml",
-#   "param": "dev"
-# }
+def query_api(url):
+    headers = {
+        'x-api-key': API_KEY
+    }
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    
+    data = response.json()
+    if 'error' in data:
+        raise Exception(data['error'])
+    
+    return data
