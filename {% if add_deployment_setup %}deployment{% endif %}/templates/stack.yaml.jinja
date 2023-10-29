@@ -162,6 +162,53 @@ Resources:
   ############################################
 
   ############################################
+  # DescribeStack Lambda related
+  DescribeStackLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: "/"
+      ManagedPolicyArns:
+        - !If [ IsDev, arn:aws:iam::aws:policy/AdministratorAccess, !Ref AWS::NoValue ]
+      Policies:
+      - PolicyName: AllowLambdaLogs
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: arn:aws:logs:*:*:*
+
+  DescribeStackLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: DescribeStack Lambda
+      Handler: lambda_function.lambda_handler
+      MemorySize: 1024
+      Role: !GetAtt DescribeStackLambdaExecutionRole.Arn
+      Layers:
+        - !Ref CommonLambdaLayer
+      Runtime: python3.11
+      Timeout: 90
+      Code:
+        S3Bucket: <<<ARTIFACT_BUCKET>>>
+        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/deployment/lambda/functions/describe-stack.zip
+
+  # DescribeStack Lambda related
+  ############################################
+
+  ############################################
   # Step Function related
   StepFunctionRole:
     Type: AWS::IAM::Role
@@ -220,6 +267,8 @@ Resources:
         StackPrefix: {{ deployment_stack_name_prefix }}
         ValidateInputLambda: !GetAtt ValidateInputLambda.Arn
         ProcessManifestLambda: !GetAtt ProcessManifestLambda.Arn
+        DescribeStackLambda: !GetAtt DescribeStackLambda.Arn
 
   # Step Function related
   ############################################
+

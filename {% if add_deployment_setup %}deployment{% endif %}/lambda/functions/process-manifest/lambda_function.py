@@ -13,7 +13,8 @@ s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
     try:
-        # Extract include and parameters details
+        # Extract StackPrefix, include details, and parameters
+        stack_prefix = event["StackPrefix"]
         include_details = event["Deploy"]["Include"]
         parameters = event["Deploy"]["Parameters"]
         
@@ -36,9 +37,14 @@ def lambda_handler(event, context):
         # Remove non-ACTIVE accounts and deduplicate
         active_accounts = {account['id']: account for account in final_accounts if account['status'] == 'ACTIVE'}.values()
         
+        # Create template url
+        # "https://", # deployment-idea-test-bucket/artefacts/xxx/v1/aa089e9b-1e85-41a3-8063-0b93c236e1d5/another-one/templates/stack.yaml
+
         # Create files in S3 for each of the resultant active accounts
         for account in active_accounts:
             file_content = json.dumps({
+                "StackPrefix": stack_prefix,
+                "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/artefacts/xxx/v1/another-one.yaml", # tmp hack
                 "AccountId": account['id'],
                 "Parameters": parameters
             })
@@ -47,7 +53,11 @@ def lambda_handler(event, context):
             
         return {
             'statusCode': 200,
-            'body': json.dumps('Process completed.')
+            'body': {
+                'message': 'Process completed.',
+                'Bucket': S3_BUCKET,
+                'Prefix': f"{S3_BUCKET_PREFIX}/{context.aws_request_id}/"
+            }
         }
     
     except Exception as e:

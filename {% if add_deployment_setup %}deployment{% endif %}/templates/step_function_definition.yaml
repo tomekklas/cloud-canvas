@@ -16,6 +16,10 @@ States:
         IntervalSeconds: 2
         MaxAttempts: 6
         BackoffRate: 2
+    Catch:
+      - ErrorEquals:
+          - ManifestValidationError
+        Next: ValidationError
     Comment: this is a test comment
     Next: ProcessStep
   ProcessStep:
@@ -36,6 +40,11 @@ States:
         BackoffRate: 2
     Comment: this is a test comment
     Next: Map
+  ValidationError:
+    Type: Fail
+    Error: ManifestValidationError
+    Cause: The Lambda function returned a ManifestValidationError.
+
   Map:
     Type: Map
     ToleratedFailurePercentage: 50
@@ -44,8 +53,8 @@ States:
     ItemReader:
       Resource: arn:aws:states:::s3:listObjectsV2
       Parameters:
-        Bucket.$: $.Bucket
-        Prefix.$: $.Prefix
+        Bucket.$: $.body.Bucket
+        Prefix.$: $.body.Prefix
     ItemProcessor:
       ProcessorConfig:
         Mode: DISTRIBUTED
@@ -57,7 +66,7 @@ States:
           Type: Task
           Next: DescribeStack
           Parameters:
-            Bucket: ${BucketName}
+            Bucket: <<<ARTIFACT_BUCKET>>>
             Key.$: $.Key
           Resource: arn:aws:states:::aws-sdk:s3:getObject
           ResultSelector:
@@ -67,47 +76,80 @@ States:
           Type: Task
           Resource: arn:aws:states:::aws-sdk:cloudformation:describeStacks
           Parameters:
-            StackName.$: States.Format('{{ StackPrefix }}-{}', $.Parameters.Identifier)
-          # Credentials:
-          #   RoleArn.$: States.Format('arn:aws:iam::{}:role/deployment-idea-test-tomek', $.Parameters.AccountId)
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
           Catch:
             - ErrorEquals:
-                - States.TaskFailed
-              Next: CreateStack
+                - "States.TaskFailed"
               ResultPath: $.result
+              Next: CreateStack
+            - ErrorEquals:
+                - "Exception"
+              Next: CheckStackException
           ResultPath: null
           Next: UpdateStack
+
+        CheckStackException:
+          Type: Choice
+          Choices:
+            - Variable: "$.errorMessage"
+              StringEquals: "StackDoesNotExist"
+              Next: CreateStack
+          Default: Failed
+
         CreateStack:
           Type: Task
           Resource: arn:aws:states:::aws-sdk:cloudformation:createStack
           Parameters:
-            StackName.$: States.Format('deployment-idea-test-tomek-{}', $.Parameters.Identifier)
-            TemplateURL: https://${BucketName}.s3.eu-central-1.amazonaws.com/artefacts/deployment_idea_test/v1/project_start.yaml
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+            TemplateURL: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/artefacts/xxx/v1/another-one.yaml #$.Parameters.TemplateUrl
             TimeoutInMinutes: 10
-            Parameters:
-              - ParameterKey: Stage
-                ParameterValue.$: $.Parameters.Stage
+            # Parameters:
+            #   - ParameterKey: Stage
+            #     ParameterValue.$: $.Parameters.Stage
             Capabilities:
+              - CAPABILITY_IAM
               - CAPABILITY_AUTO_EXPAND
-          Credentials:
-            RoleArn.$: States.Format('arn:aws:iam::{}:role/deployment-idea-test-tomek', $.Parameters.AccountId)
+          # Credentials:
+          #   RoleArn.$: States.Format('arn:aws:iam::{}:role/deployment-idea-test-tomek', $.Parameters.AccountId)
           Catch:
             - ErrorEquals:
                 - States.ALL
               Next: Failed
           ResultPath: null
           Next: Wait
+
+        UpdateStack:
+          Type: Task
+          Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
+          Parameters:
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+            TemplateURL: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/artefacts/xxx/v1/another-one.yaml #$.Parameters.TemplateUrl
+            # Parameters:
+            #   - ParameterKey: Stage
+            #     ParameterValue.$: $.Parameters.Stage
+            Capabilities:
+              - CAPABILITY_IAM
+              - CAPABILITY_AUTO_EXPAND
+          Catch:
+            - ErrorEquals:
+                - States.TaskFailed
+              Next: Pass
+              ResultPath: $
+          ResultPath: null
+          Next: Wait
+
         Failed:
           Type: Fail
         Wait:
           Type: Wait
           Seconds: 5
           Next: GetStatus
+
         GetStatus:
           Type: Task
           Resource: arn:aws:states:::aws-sdk:cloudformation:describeStacks
           Parameters:
-            StackName.$: States.Format('{{ StackPrefix }}-{}', $.Parameters.Identifier)
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
           # Credentials:
           #   RoleArn.$: States.Format('arn:aws:iam::{}:role/deployment-idea-test-tomek', $.Parameters.AccountId)
           Retry:
@@ -152,12 +194,13 @@ States:
           Type: Task
           Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
           Parameters:
-            StackName.$: States.Format('{{ StackPrefix }}-{}', $.Parameters.Identifier)
-            TemplateURL: https://${BucketName}.s3.eu-central-1.amazonaws.com/artefacts/deployment_idea_test/v1/project_start.yaml
-            Parameters:
-              - ParameterKey: Stage
-                ParameterValue.$: $.Parameters.Stage
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+            TemplateURL: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/artefacts/xxx/v1/another-one.yaml #$.Parameters.TemplateUrl
+            # Parameters:
+            #   - ParameterKey: Stage
+            #     ParameterValue.$: $.Parameters.Stage
             Capabilities:
+              - CAPABILITY_IAM
               - CAPABILITY_AUTO_EXPAND
           # Credentials:
           #   RoleArn.$: States.Format('arn:aws:iam::{}:role/deployment-idea-test-tomek', $.Parameters.AccountId)
