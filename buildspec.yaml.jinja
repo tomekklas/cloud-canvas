@@ -4,7 +4,8 @@ env:
   variables:
     VERSION_NUMBER: v1
     PROJECT_SLUG: {{ _copier_conf.dst_path }}
-    BUCKET_NAME: {{ ARTEFACT_BUCKET }}
+    BUCKET_NAME_DEV: {{ deployment_dev_bucket }}
+    BUCKET_NAME_PROD: {{ deployment_prod_bucket }}
 
 phases:
   install:
@@ -26,11 +27,14 @@ phases:
             BUILD_ARN=$(aws codebuild batch-get-builds --ids "$CODEBUILD_BUILD_ID" --query 'builds[0].arn' --output text)
             if [ "$BUILD_ARN" != "None" ]; then
                 echo "Running inside actual AWS CodeBuild."
+                ARTIFACT_BUCKET=${BUCKET_NAME_PROD}
             else
                 echo "Running inside local CodeBuild container."
+                ARTIFACT_BUCKET=${BUCKET_NAME_DEV}
             fi
         else
             echo "Not running inside a CodeBuild environment."
+            ARTIFACT_BUCKET=${BUCKET_NAME_DEV}
         fi
 
       - echo "Preparing upload directory..."
@@ -110,7 +114,7 @@ phases:
 
       - |-
         echo "Uploading artifacts..."
-        aws s3 cp --recursive "$UPLOAD_DIRECTORY" "s3://${BUCKET_NAME}/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/" \
+        aws s3 cp --recursive "$UPLOAD_DIRECTORY" "s3://${ARTIFACT_BUCKET}/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/" \
           --exclude ".copier-answers.yml" \
           --exclude "buildspec.yaml" \
           --exclude "codebuild_build.sh"
