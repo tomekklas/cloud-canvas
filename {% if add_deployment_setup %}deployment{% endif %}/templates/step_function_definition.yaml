@@ -101,11 +101,11 @@ States:
           Resource: arn:aws:states:::aws-sdk:cloudformation:createStack
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
-            TemplateURL: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/artefacts/xxx/v1/another-one.yaml #$.Parameters.TemplateUrl
+            TemplateURL.$: States.Format('{}', $.Parameters.TemplateUrl)
             TimeoutInMinutes: 10
             # Parameters:
-            #   - ParameterKey: Stage
-            #     ParameterValue.$: $.Parameters.Stage
+            #   - ParameterKey: TemplateUrl
+            #     ParameterValue.$: $.Parameters.TemplateUrl
             Capabilities:
               - CAPABILITY_IAM
               - CAPABILITY_AUTO_EXPAND
@@ -123,7 +123,7 @@ States:
           Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
-            TemplateURL: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/artefacts/xxx/v1/another-one.yaml #$.Parameters.TemplateUrl
+            TemplateURL.$: $.Parameters.TemplateUrl
             # Parameters:
             #   - ParameterKey: Stage
             #     ParameterValue.$: $.Parameters.Stage
@@ -190,27 +190,6 @@ States:
                   StringMatches: UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS
               Next: Failed
           Default: Pass
-        UpdateStack:
-          Type: Task
-          Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
-          Parameters:
-            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
-            TemplateURL: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/artefacts/xxx/v1/another-one.yaml #$.Parameters.TemplateUrl
-            # Parameters:
-            #   - ParameterKey: Stage
-            #     ParameterValue.$: $.Parameters.Stage
-            Capabilities:
-              - CAPABILITY_IAM
-              - CAPABILITY_AUTO_EXPAND
-          # Credentials:
-          #   RoleArn.$: States.Format('arn:aws:iam::{}:role/deployment-idea-test-tomek', $.Parameters.AccountId)
-          Catch:
-            - ErrorEquals:
-                - States.TaskFailed
-              Next: Pass
-              ResultPath: $
-          ResultPath: null
-          Next: Wait
         Pass:
           Type: Pass
           Parameters:
