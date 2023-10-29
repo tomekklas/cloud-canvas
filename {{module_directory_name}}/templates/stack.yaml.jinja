@@ -64,8 +64,8 @@ Resources:
       CompatibleRuntimes: 
         - python3.9
       Content: 
-        S3Bucket: {{ ARTEFACT_BUCKET }}
-        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/{{ module_directory_name }}/lambda/layers/{{ common_lambda_layer_name|trim|slug }}/{{ common_lambda_layer_name|trim|slug }}.zip
+        S3Bucket: <<<ARTIFACT_BUCKET>>>
+        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/{{ module_directory_name }}/lambda/layers/{{ common_lambda_layer_name|trim|slug }}.zip
       Description: {{ module_name }} - Common Lambda Layer
   # Common lambda layer
   ############################################
@@ -120,8 +120,8 @@ Resources:
       Runtime: python3.11
       Timeout: 90
       Code:
-        S3Bucket: {{ ARTEFACT_BUCKET }}
-        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/{{ module_directory_name }}/lambda/functions/{{ cleaned_lambda_slug }}/{{ cleaned_lambda_slug }}.zip
+        S3Bucket: <<<ARTIFACT_BUCKET>>>
+        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/{{ module_directory_name }}/lambda/functions/{{ cleaned_lambda_slug }}.zip
 
   # {{ lambda_name | title }} Lambda related
   ############################################

@@ -22,10 +22,10 @@ PRODUCT_VERSION:
   when: false
   default: v1
 
-ARTEFACT_BUCKET: # TODO: ask for test and prod buckets? generate when does not exist?
-  type: str
-  when: false
-  default: deployment-idea-test-bucket
+# ARTEFACT_BUCKET: # TODO: ask for test and prod buckets? generate when does not exist?
+#   type: str
+#   when: false
+#   default: deployment-idea-test-bucket
 
 # Questionnaire
 module_name:
@@ -103,6 +103,15 @@ deployment_prod_bucket:
       The name must be a valid S3 bucket name.
       {% endif %}
 
+deployment_stack_name_prefix:
+  type: str
+  when: "{{ add_deployment_setup == True }}"
+  help: Defines CloudFormation stack prefix.
+  # default: "{{ deployment_dev_bucket }}"
+  validator: >-
+      {% if not (deployment_stack_name_prefix) %}
+      The name must be specified.
+      {% endif %}
 
 owner_name:
   type: str

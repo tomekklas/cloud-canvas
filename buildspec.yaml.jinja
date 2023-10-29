@@ -37,12 +37,6 @@ phases:
             ARTIFACT_BUCKET=${BUCKET_NAME_DEV}
         fi
 
-      - echo "Preparing upload directory..."
-      - |-
-        UPLOAD_DIRECTORY="/tmp/upload"
-        mkdir -p "$UPLOAD_DIRECTORY"
-        echo "Upload Directory set to: $UPLOAD_DIRECTORY"
-
   build:
     commands:
       - |-
@@ -55,10 +49,9 @@ phases:
         build_lambda() {
           local LAMBDA_PATH="$1"
           local LAMBDA_NAME=$(basename "$LAMBDA_PATH")
+          local PARENT_DIR=$(dirname "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}")
           
           echo "Building lambda: $LAMBDA_NAME in $LAMBDA_PATH"
-
-          mkdir -p "${UPLOAD_DIRECTORY}/${LAMBDA_PATH}"
           pushd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}"
 
           if [[ -f requirements.txt ]]; then
@@ -84,21 +77,24 @@ phases:
           rm -rf lib
           rm -f requirements.txt
           rm -f lambda_function.py
+          
           popd
+          
+          # Move the zip file one level up and delete the original directory
+          mv "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}/${LAMBDA_NAME}.zip" "${PARENT_DIR}/${LAMBDA_NAME}.zip"
+          rm -rf "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}"
         }
 
         echo "Searching for lambda functions and layers..."
-        find . -type d -regex '.*/lambda/functions/[^/]*$' -or -regex '.*/lambda/layers/[^/]*$' | while read -r dir_path; do
+        find . -type d -regex '.*/lambda/functions/[^/]*$' -or -regex '.*/lambda/layers/[^/]*$' | while read -r dir_path; 
+          do
             build_lambda "$dir_path"
-        done
-
-        echo "Displaying files in upload directory: $UPLOAD_DIRECTORY"
-        find "$UPLOAD_DIRECTORY" -type f
+          done
 
       - |-
         echo "Replacing placeholders"
         sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" $(find . -type f)
-        sed -i "s/<<<ARTEFACT_BUCKET>>>/$ARTEFACT_BUCKET/g" $(find . -type f)
+        sed -i "s/<<<ARTIFACT_BUCKET>>>/$ARTIFACT_BUCKET/g" $(find . -type f)
 
       - |-
         echo "Reformat all non-empty yaml documents"
@@ -109,20 +105,24 @@ phases:
         done
 
       - |-
-        echo "Syncing to upload directory"
-        rsync -rva . "${UPLOAD_DIRECTORY}"
-
-      - |-
         echo "Uploading artifacts..."
-        aws s3 cp --recursive "$UPLOAD_DIRECTORY" "s3://${ARTIFACT_BUCKET}/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/" \
+        aws s3 cp --recursive ${CODEBUILD_SRC_DIR} "s3://${ARTIFACT_BUCKET}/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/" \
           --exclude ".copier-answers.yml" \
           --exclude "buildspec.yaml" \
           --exclude "codebuild_build.sh"
 
+      - |-
+        echo "##### UPDATING STATIC REFERENCES #####"
+        find . -type f -name "*stack.yaml" | while read -r filepath; do
+            dir=$(echo "$filepath" | awk -F'/' '{print $2}')
+            echo "URL: https://${ARTIFACT_BUCKET}.s3.eu-central-1.amazonaws.com/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/${dir}/stack.yaml"
+            aws s3 cp ${CODEBUILD_SRC_DIR}/${filepath} s3://${ARTIFACT_BUCKET}/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${dir}.yaml
+        done
+        echo "##### REFERENCES UPDATED SUCCESSFULLY #####"
+
   post_build:
     commands:
       - echo "Post-build steps..."
-      # ... other post_build commands ...
       - echo "Your CodeBuild process has completed successfully!"
 
 artifacts:
