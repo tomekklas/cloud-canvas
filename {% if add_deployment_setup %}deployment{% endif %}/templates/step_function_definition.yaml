@@ -1,5 +1,6 @@
 StartAt: ValidationStep
 States:
+
   ValidationStep:
     Type: Task
     Resource: arn:aws:states:::lambda:invoke
@@ -22,6 +23,7 @@ States:
         Next: ValidationError
     Comment: this is a test comment
     Next: ProcessStep
+
   ProcessStep:
     Type: Task
     Resource: arn:aws:states:::lambda:invoke
@@ -80,19 +82,18 @@ States:
           Catch:
             - ErrorEquals:
                 - "States.TaskFailed"
-              ResultPath: $.result
+              ResultPath: $.describeResult
               Next: CreateStack
             - ErrorEquals:
                 - "Exception"
               Next: CheckStackException
-          ResultPath: null
           Next: UpdateStack
 
         CheckStackException:
           Type: Choice
           Choices:
-            - Variable: "$.errorMessage"
-              StringEquals: "StackDoesNotExist"
+            - Variable: "$.describeResult.errorMessage"
+              StringEquals: "Stack with id does not exist"
               Next: CreateStack
           Default: Failed
 
@@ -101,7 +102,7 @@ States:
           Resource: arn:aws:states:::aws-sdk:cloudformation:createStack
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
-            TemplateURL: States.Format('{}', $.Parameters.TemplateUrl)
+            TemplateURL.$: States.Format('{}', $.Parameters.TemplateUrl)
             TimeoutInMinutes: 10
             # Parameters:
             #   - ParameterKey: Stage
@@ -123,7 +124,7 @@ States:
           Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
-            TemplateURL: States.Format('{}', $.Parameters.TemplateUrl)
+            TemplateURL.$: States.Format('{}', $.Parameters.TemplateUrl)
             # Parameters:
             #   - ParameterKey: Stage
             #     ParameterValue.$: $.Parameters.Stage
@@ -190,27 +191,7 @@ States:
                   StringMatches: UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS
               Next: Failed
           Default: Pass
-        UpdateStack:
-          Type: Task
-          Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
-          Parameters:
-            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
-            TemplateURL: States.Format('{}', $.Parameters.TemplateUrl)
-            # Parameters:
-            #   - ParameterKey: Stage
-            #     ParameterValue.$: $.Parameters.Stage
-            Capabilities:
-              - CAPABILITY_IAM
-              - CAPABILITY_AUTO_EXPAND
-          # Credentials:
-          #   RoleArn.$: States.Format('arn:aws:iam::{}:role/deployment-idea-test-tomek', $.Parameters.AccountId)
-          Catch:
-            - ErrorEquals:
-                - States.TaskFailed
-              Next: Pass
-              ResultPath: $
-          ResultPath: null
-          Next: Wait
+
         Pass:
           Type: Pass
           Parameters:
