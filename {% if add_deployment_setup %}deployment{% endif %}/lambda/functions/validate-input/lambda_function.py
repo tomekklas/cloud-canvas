@@ -1,4 +1,4 @@
-import json
+import re
 
 def lambda_handler(event, context):
     try:
@@ -25,6 +25,17 @@ def lambda_handler(event, context):
         for key, values in include_data.items():
             if not values:
                 raise ValueError(f'Include\'s {key} should have at least one value.')
+
+        # Validate TemplateUrl field
+        if 'TemplateUrl' not in event or not event['TemplateUrl']:
+            raise ValueError('Missing or empty TemplateUrl.')
+
+        template_url_pattern = re.compile(
+            r'^https://.+\.s3\..+\.amazonaws\.com/.+$'
+        )
+
+        if not template_url_pattern.match(event['TemplateUrl']):
+            raise ValueError('Invalid TemplateUrl. It should be an HTTPS address pointing to an S3 bucket.')
 
         # Optional Parameters validation
         if 'Parameters' in deploy_data:
