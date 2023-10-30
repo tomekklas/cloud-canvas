@@ -55,7 +55,7 @@ Resources:
         - python3.9
       Content: 
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/deployment/lambda/layers/utilities.zip
+        S3Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/lambdas/utilities/<<<utilities>>>
       Description: {{ module_name }} - Common Lambda Layer
   # Common lambda layer
   ############################################
@@ -102,7 +102,8 @@ Resources:
       Timeout: 90
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/deployment/lambda/functions/validate-input.zip
+        S3Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/lambdas/validate-input/<<<validate-input>>>
+
 
   # ValidateInput Lambda related
   ############################################
@@ -156,7 +157,8 @@ Resources:
       Timeout: 90
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: artefacts/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/deployment/lambda/functions/process-manifest.zip
+        S3Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/lambdas/process-manifest/<<<process-manifest>>>
+
 
   # ProcessManifest Lambda related
   ############################################
@@ -212,7 +214,7 @@ Resources:
         Enabled: true
       DefinitionS3Location:
         Bucket: <<<ARTIFACT_BUCKET>>>
-        Key: artefacts/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/deployment/templates/step_function_definition.yaml
+        Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/templates/<<<BUILD_ID>>>/deployment/templates/step_function_definition.yaml
       DefinitionSubstitutions:
         BucketName: <<<ARTIFACT_BUCKET>>>
         Version: {{ PRODUCT_VERSION }}

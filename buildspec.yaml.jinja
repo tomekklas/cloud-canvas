@@ -47,54 +47,79 @@ phases:
 
       - |-
         build_lambda() {
-          local LAMBDA_PATH="$1"
-          local LAMBDA_NAME=$(basename "$LAMBDA_PATH")
-          local PARENT_DIR=$(dirname "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}")
-          
-          echo "Building lambda: $LAMBDA_NAME in $LAMBDA_PATH"
-          pushd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}"
+            local LAMBDA_PATH="$1"
+            local ARTIFACT_BUCKET="$2"
+            local LAMBDA_NAME=$(basename "$LAMBDA_PATH")
+            local PARENT_DIR=$(dirname "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}")
 
-          if [[ -f requirements.txt ]]; then
-              echo "Installing dependencies for $LAMBDA_NAME..."
-              pip install -r requirements.txt -t lib
-          else
-              echo "No requirements.txt found for $LAMBDA_NAME."
-          fi
+            echo "Building lambda: $LAMBDA_NAME in $LAMBDA_PATH"
+            pushd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}"
 
-          echo "Listing files for $LAMBDA_NAME:"
-          ls -al
+            # Compute a cumulative MD5 Hash of all files in the directory
+            lambda_identifier=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum | awk '{print $1}')
 
-          if find ./lib -mindepth 1 -maxdepth 1 | read; then
-              echo "Zipping deployment package for $LAMBDA_NAME..."
-              pushd lib
-              zip -r9 "../${LAMBDA_NAME}.zip" .
-              popd
-          else
-              echo "No deployment package to zip for $LAMBDA_NAME."
-          fi
+            echo "<<<$LAMBDA_NAME>>>:$lambda_identifier.zip" >> /tmp/lambda_mapping.txt
 
-          zip -g "${LAMBDA_NAME}.zip" lambda_function.py
-          rm -rf lib
-          rm -f requirements.txt
-          rm -f lambda_function.py
-          
-          popd
-          
-          # Move the zip file one level up and delete the original directory
-          mv "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}/${LAMBDA_NAME}.zip" "${PARENT_DIR}/${LAMBDA_NAME}.zip"
-          rm -rf "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}"
+            # Define the new lambda save path
+            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}/lambdas/${LAMBDA_NAME}"
+            mkdir -p "${LAMBDA_SAVE_PATH}"
+
+            # Check S3 for Existing Lambda
+            if aws s3 ls "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}/${VERSION_NUMBER}/lambdas/${LAMBDA_NAME}/${lambda_identifier}.zip"; then
+                echo "Lambda ${LAMBDA_NAME} already exists in S3, skipping build."
+                popd
+                return
+            fi
+
+            # If no match found in S3, continue the build process
+            if [[ -f requirements.txt ]]; then
+                echo "Installing dependencies for $LAMBDA_NAME..."
+                pip install -r requirements.txt -t lib
+            else
+                echo "No requirements.txt found for $LAMBDA_NAME."
+            fi
+
+            echo "Listing files for $LAMBDA_NAME:"
+            ls -al
+
+            if find ./lib -mindepth 1 -maxdepth 1 | read; then
+                echo "Zipping deployment package for $LAMBDA_NAME..."
+                pushd lib
+                zip -r9 "../${lambda_identifier}.zip" .
+                popd
+            else
+                echo "No deployment package to zip for $LAMBDA_NAME."
+            fi
+
+            rm -rf lib
+            rm -f requirements.txt
+            zip -g "${lambda_identifier}.zip" *
+            rm -f lambda_function.py
+
+            popd
+
+            # Move the zip file to the new save path
+            mv "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}/${lambda_identifier}.zip" "${LAMBDA_SAVE_PATH}/${lambda_identifier}.zip"
+            rm -rf "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}"
         }
 
         echo "Searching for lambda functions and layers..."
         find . -type d -regex '.*/lambda/functions/[^/]*$' -or -regex '.*/lambda/layers/[^/]*$' | while read -r dir_path; 
           do
-            build_lambda "$dir_path"
+            build_lambda ${dir_path} ${ARTIFACT_BUCKET}
           done
 
       - |-
         echo "Replacing placeholders"
         sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" $(find . -type f)
         sed -i "s/<<<ARTIFACT_BUCKET>>>/$ARTIFACT_BUCKET/g" $(find . -type f)
+
+        cat /tmp/lambda_mapping.txt
+
+        # New code to replace Lambda names in templates based on the mapping file
+        while IFS=":" read -r original_name new_name; do
+            find . -type f -name "*.yaml" -exec sed -i "s|${original_name}|${new_name}|g" {} \;
+        done < /tmp/lambda_mapping.txt
 
       - |-
         echo "Reformat all non-empty yaml documents"
@@ -106,19 +131,23 @@ phases:
 
       - |-
         echo "Uploading artifacts..."
-        aws s3 cp --recursive ${CODEBUILD_SRC_DIR} "s3://${ARTIFACT_BUCKET}/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/" \
+        aws s3 cp --recursive "${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}" "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}/${VERSION_NUMBER}/" \
           --exclude ".copier-answers.yml" \
           --exclude "buildspec.yaml" \
+          --exclude "build-and-run.sh" \
           --exclude "codebuild_build.sh"
 
       - |-
         echo "##### UPDATING STATIC REFERENCES #####"
-        find . -type f -name "*stack.yaml" | while read -r filepath; do
-            dir=$(echo "$filepath" | awk -F'/' '{print $2}')
-            echo "URL: https://${ARTIFACT_BUCKET}.s3.eu-central-1.amazonaws.com/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/${dir}/stack.yaml"
-            aws s3 cp ${CODEBUILD_SRC_DIR}/${filepath} s3://${ARTIFACT_BUCKET}/artefacts/${PROJECT_SLUG}/${VERSION_NUMBER}/${dir}.yaml
+        find . -type f \( -name "*stack.yaml" -or -name "step_function_definition.yaml" \) | while read -r filepath; do
+            filepath_cleaned=$(echo "$filepath" | sed 's|^./||')
+            base_filename=$(basename "$filepath_cleaned")
+            dir=$(echo "$filepath_cleaned" | awk -F'/' '{print $2}')
+            echo "URL: https://${ARTIFACT_BUCKET}.s3.eu-central-1.amazonaws.com/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/${dir}/${base_filename}"
+            aws s3 cp "${CODEBUILD_SRC_DIR}/${filepath_cleaned}" "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}/${VERSION_NUMBER}/templates/${BUILD_ID}/${filepath_cleaned}"
         done
         echo "##### REFERENCES UPDATED SUCCESSFULLY #####"
+
 
   post_build:
     commands:
