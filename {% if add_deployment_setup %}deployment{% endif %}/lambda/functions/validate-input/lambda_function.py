@@ -6,26 +6,6 @@ def lambda_handler(event, context):
         if 'StackPrefix' not in event or not event['StackPrefix']:
             raise ValueError('Missing or empty StackPrefix.')
 
-        # Ensure the root has "Deploy"
-        if 'Deploy' not in event:
-            raise ValueError('Missing Deploy key.')
-
-        deploy_data = event['Deploy']
-
-        # Ensure there's "Include" under "Deploy"
-        if 'Include' not in deploy_data:
-            raise ValueError('Missing Include key under Deploy.')
-
-        include_data = deploy_data['Include']
-
-        # Check if there's at least one value underneath Include with at least one value provided
-        if not any(include_data.values()):
-            raise ValueError('Include should have at least one key with values.')
-
-        for key, values in include_data.items():
-            if not values:
-                raise ValueError(f'Include\'s {key} should have at least one value.')
-
         # Validate TemplateUrl field
         if 'TemplateUrl' not in event or not event['TemplateUrl']:
             raise ValueError('Missing or empty TemplateUrl.')
@@ -37,11 +17,42 @@ def lambda_handler(event, context):
         if not template_url_pattern.match(event['TemplateUrl']):
             raise ValueError('Invalid TemplateUrl. It should be an HTTPS address pointing to an S3 bucket.')
 
-        # Optional Parameters validation
-        if 'Parameters' in deploy_data:
-            parameters_data = deploy_data['Parameters']
-            if not any(parameters_data.values()):
-                raise ValueError('Parameters should have at least one key with values.')
+        # Ensure either Create or Delete is provided, but not both
+        if 'Create' in event and 'Delete' in event:
+            raise ValueError('Either Create or Delete should be provided, but not both.')
+        elif 'Create' not in event and 'Delete' not in event:
+            raise ValueError('Either Create or Delete is required.')
+
+        # Function to validate the sub-module (i.e., either Create or Delete)
+        def validate_submodule(data):
+            # Ensure there's at least one of "Include" or "Exclude"
+            if 'Include' not in data and 'Exclude' not in data:
+                raise ValueError('At least one of Include or Exclude is required.')
+
+            for key in ['Include', 'Exclude']:
+                if key in data:
+                    submodule_data = data[key]
+
+                    # At least one of Accounts, OUs, or Tags should be present
+                    if not any(k in submodule_data for k in ['Accounts', 'OUs', 'Tags']):
+                        raise ValueError(f'{key} should have at least one of Accounts, OUs, or Tags.')
+
+                    # Each of the keys (Accounts, OUs, Tags) should have values if present
+                    for sub_key, values in submodule_data.items():
+                        if not values:
+                            raise ValueError(f'{key}\'s {sub_key} should have at least one value.')
+
+            # Optional Parameters validation
+            if 'Parameters' in data:
+                parameters_data = data['Parameters']
+                if not any(parameters_data.values()):
+                    raise ValueError('Parameters should have at least one key with values.')
+
+        if 'Create' in event:
+            validate_submodule(event['Create'])
+
+        if 'Delete' in event:
+            validate_submodule(event['Delete'])
 
         # If all checks pass, return the original event data
         return event
@@ -52,3 +63,4 @@ def lambda_handler(event, context):
             'Error': 'ManifestValidationError',
             'Cause': str(e)
         }
+

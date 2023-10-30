@@ -63,14 +63,24 @@ States:
       States:
         Get config from S3:
           Type: Task
-          Next: Check initial CloudFormation stack status
+          Next: What action is required?
           Parameters:
             Bucket: deployment-idea-test-bucket
             Key.$: "$.Key"
           Resource: arn:aws:states:::aws-sdk:s3:getObject
           ResultSelector:
             Parameters.$: States.StringToJson($.Body)
-        Check initial CloudFormation stack status:
+        What action is required?:
+          Type: Choice
+          Choices:
+          - Variable: "$.Parameters.Action"
+            StringEquals: Create
+            Next: Check is stack already exists
+          - Variable: "$.Parameters.Action"
+            StringEquals: Delete
+            Next: DeleteStack
+          Default: Check is stack already exists
+        Check is stack already exists:
           Type: Task
           Next: Can we update the stack?
           Parameters:
@@ -85,6 +95,7 @@ States:
           ResultPath: "$.StackStatus"
           ResultSelector:
             Status.$: "$.Stacks[0].StackStatus"
+          Comment: If it does not exist, this returns an exception
         Can we update the stack?:
           Type: Choice
           Choices:
@@ -107,11 +118,11 @@ States:
             - ParameterKey: Environment
               ParameterValue.$: States.Format('{}', $.Parameters.Parameters.Environment)
           Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
-          Next: Wait a bit
+          Next: Wait for Create / Update action
           ResultPath:
         Create the stack:
           Type: Task
-          Next: Wait a bit
+          Next: Wait for Create / Update action
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
             TemplateURL.$: States.Format('{}', $.Parameters.TemplateUrl)
@@ -120,7 +131,7 @@ States:
             - CAPABILITY_IAM
           Resource: arn:aws:states:::aws-sdk:cloudformation:createStack
           ResultPath:
-        Wait a bit:
+        Wait for Create / Update action:
           Type: Wait
           Seconds: 10
           Next: Check CloudFormation action status
@@ -141,7 +152,7 @@ States:
               StringEquals: CREATE_IN_PROGRESS
             - Variable: "$.StackStatus.Status"
               StringEquals: UPDATE_IN_PROGRESS
-            Next: Wait a bit
+            Next: Wait for Create / Update action
           - Or:
             - Variable: "$.StackStatus.Status"
               StringEquals: CREATE_COMPLETE
@@ -154,3 +165,34 @@ States:
           End: true
         Fail:
           Type: Fail
+        DeleteStack:
+          Type: Task
+          Parameters:
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+          Resource: arn:aws:states:::aws-sdk:cloudformation:deleteStack
+          Next: Wait for Delete action
+          ResultPath:
+        Wait for Delete action:
+          Type: Wait
+          Seconds: 10
+          Next: DescribeStacks
+        DescribeStacks:
+          Type: Task
+          Parameters:
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+          Resource: arn:aws:states:::aws-sdk:cloudformation:describeStacks
+          ResultSelector:
+            Status.$: "$.Stacks[0].StackStatus"
+          ResultPath: "$.StackStatus"
+          Next: What is stack deletion status?
+          Catch:
+          - ErrorEquals:
+            - States.TaskFailed
+            Next: Pass
+        What is stack deletion status?:
+          Type: Choice
+          Choices:
+          - Variable: "$.StackStatus.Status"
+            StringEquals: DELETE_IN_PROGRESS
+            Next: Wait for Delete action
+          Default: Pass

@@ -13,12 +13,17 @@ s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
     try:
-        # Extract StackPrefix, TemplateUrl, include details, and parameters
+        # Extract StackPrefix and TemplateUrl
         stack_prefix = event["StackPrefix"]
         template_url = event["TemplateUrl"]
-        include_details = event["Deploy"]["Include"]
-        parameters = event["Deploy"]["Parameters"]
+
+        # Determine the operation type: Create or Delete
+        operation_type = "Create" if "Create" in event else "Delete"
+        operation_details = event[operation_type]
         
+        include_details = operation_details["Include"]
+        parameters = operation_details.get("Parameters", {})  # Using get to handle missing Parameters
+
         # Ensure at least one criterion (Accounts, OUs, Tags) is present under Include.
         if not any(criterion in include_details for criterion in ['Accounts', 'OUs', 'Tags']):
             raise Exception("At least one criterion (Accounts, OUs, Tags) must be present under Include.")
@@ -28,8 +33,8 @@ def lambda_handler(event, context):
         
         # Extract exclude details if present and gather accounts
         exclude_accounts = []
-        if "Exclude" in event["Deploy"]:
-            exclude_details = event["Deploy"]["Exclude"]
+        if "Exclude" in operation_details:
+            exclude_details = operation_details["Exclude"]
             exclude_accounts = gather_accounts(exclude_details)
         
         # Exclude the accounts specified in the Exclude section from the Include accounts
@@ -41,6 +46,7 @@ def lambda_handler(event, context):
         # Create files in S3 for each of the resultant active accounts
         for account in active_accounts:
             file_content = json.dumps({
+                "Action": operation_type,
                 "StackPrefix": stack_prefix,
                 "TemplateUrl": template_url,
                 "AccountId": account['id'],

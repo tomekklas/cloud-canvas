@@ -1,7 +1,7 @@
 {
   "StackPrefix": "testing",
   "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/artefacts/xxx/v1/another-one.yaml",
-  "Deploy": {
+  "Create": {
     "Include": {
       "Accounts": [
         821373506894
@@ -28,6 +28,32 @@
     },
     "Parameters": {
       "Owner": "Tomek"
+    }
+  },
+  "Delete": {
+    "Include": {
+      "Accounts": [
+        821373506894
+      ],
+      "OUs": [
+        "ou-cevp-dlhavf71"
+      ],
+      "Tags": {
+        "Test": "Yes",
+        "Owner": "Alan"
+      }
+    },
+    "Exclude": {
+      "Accounts": [
+        821373506890
+      ],
+      "OUs": [
+        "ou-cevp-dlhavf71"
+      ],
+      "Tags": {
+        "Test": "No",
+        "Owner": "No"
+      }
     }
   }
 }
