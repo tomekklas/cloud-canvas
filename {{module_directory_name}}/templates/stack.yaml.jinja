@@ -2,6 +2,7 @@
   {{- name | trim | replace(" ", "-") | replace("/", "-") | replace("\\", "-") | replace(":", "-") | replace("*", "-") | replace("?", "-") | replace("\"", "-") | replace("<", "-") | replace(">", "-") | replace("|", "-") -}}
 {%- endmacro %}
 {% set module_name_path_safe = path_safe(module_name) %}
+---
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::LanguageExtensions
 Description: >-   

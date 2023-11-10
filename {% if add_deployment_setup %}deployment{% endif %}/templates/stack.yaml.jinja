@@ -1,13 +1,18 @@
+{% set module_name_path_safe = "deployment" %}
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::LanguageExtensions
-Description: >- 
-{% if short_module_description%}  Short project description: {{ short_module_description }} {% endif %}
+Description: >-   
+  {% if short_module_description %}{{ short_module_description }}{% endif %}
+
+Metadata:
+  {% if owner_name %}Author: {{ owner_name }}{% endif %}
+  {% if owner_email %}Email: {{ owner_email }}{% endif %}
   Repository name: {{ _copier_conf.dst_path }}
-  Project version: {{ PRODUCT_VERSION }}
-  Build id: <<<BUILD_ID>>>
   Cloud Canvas boilerplate version: {{ TEMPLATE_VERSION }}
-  Created by: {% if owner_name%}{{ owner_name }} /{% endif %} {% if owner_email%}{{ owner_email }}{% endif %}
+  Build date: <<<BUILD_DATE>>>
+  #Version:
+  #License:
 
 Parameters:
 
@@ -47,17 +52,17 @@ Conditions:
 Resources:
 
   ############################################
-  # Common lambda layer
-  CommonLambdaLayer:
+  # Utilities Lambda Layer
+  UtilitiesLambdaLayer:
     Type: AWS::Lambda::LayerVersion
-    Properties: 
+    Properties:
+      Description: {{ module_name }} - Utilities Lambda Layer
       CompatibleRuntimes: 
         - python3.9
       Content: 
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/lambdas/utilities/<<<utilities>>>
-      Description: {{ module_name }} - Common Lambda Layer
-  # Common lambda layer
+        S3Key: <<<{{- module_name_path_safe -}}_lambda_layers_utilities>>>
+  # Utilities lambda layer
   ############################################
 
   ############################################
@@ -97,13 +102,12 @@ Resources:
       MemorySize: 1024
       Role: !GetAtt ValidateInputLambdaExecutionRole.Arn
       Layers:
-        - !Ref CommonLambdaLayer
+        - !Ref UtilitiesLambdaLayer
       Runtime: python3.11
       Timeout: 90
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/lambdas/validate-input/<<<validate-input>>>
-
+        S3Key: <<<{{- module_name_path_safe -}}_lambda_functions_validate-input>>>
 
   # ValidateInput Lambda related
   ############################################
@@ -152,14 +156,12 @@ Resources:
           ApiDomain: "3n7oqxmsm5.execute-api.eu-central-1.amazonaws.com"
           ApiVersion: "poc"
       Layers:
-        - !Ref CommonLambdaLayer
+        - !Ref UtilitiesLambdaLayer
       Runtime: python3.11
       Timeout: 90
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/lambdas/process-manifest/<<<process-manifest>>>
-
-
+        S3Key: <<<{{- module_name_path_safe -}}_lambda_functions_process-manifest>>>
   # ProcessManifest Lambda related
   ############################################
 
@@ -204,7 +206,6 @@ Resources:
                   - logs:DescribeLogGroups
                 Resource: "*" # Please see https://docs.aws.amazon.com/step-functions/latest/dg/cw-logs.html#iam-policy-eg-for-cwl
 
-
   StepFunction:
     Type: AWS::StepFunctions::StateMachine
     Properties:
@@ -214,7 +215,7 @@ Resources:
         Enabled: true
       DefinitionS3Location:
         Bucket: <<<ARTIFACT_BUCKET>>>
-        Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/templates/<<<BUILD_ID>>>/deployment/templates/step_function_definition.yaml
+        Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/deployment/templates/step_function_definition.yaml
       DefinitionSubstitutions:
         BucketName: <<<ARTIFACT_BUCKET>>>
         Version: {{ PRODUCT_VERSION }}
@@ -225,4 +226,3 @@ Resources:
 
   # Step Function related
   ############################################
-
