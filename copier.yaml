@@ -146,4 +146,6 @@ _tasks:
       {% endfor %}
     {% endif %}
   - >-
+    # TODO: Pretty format all templates
+  - >-
     chmod +x codebuild_build.sh local_build.sh

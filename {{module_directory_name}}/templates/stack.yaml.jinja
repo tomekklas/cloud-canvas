@@ -1,19 +1,18 @@
 ---
+{% set module_name_path_safe = module_name|trim|replace(" ", "-")|replace("/", "-")|replace("\\", "-")|replace(":", "-")|replace("*", "-")|replace("?", "-")|replace("\"", "-")|replace("<", "-")|replace(">", "-")|replace("|", "-") %}
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::LanguageExtensions
-Description: >- 
-{% if short_module_description%}  Short project description: {{ short_module_description }} {% endif %}
-  Repository name: {{ _copier_conf.dst_path }}
-  Project version: {{ PRODUCT_VERSION }}
-  Build id: <<<BUILD_ID>>>
-  Cloud Canvas boilerplate version: {{ TEMPLATE_VERSION }}
-  Created by: {% if owner_name%}{{ owner_name }} /{% endif %} {% if owner_email%}{{ owner_email }}{% endif %}
+Description: >-   
+  {% if short_module_description%}{{ short_module_description }}{% endif %}
 
 Metadata:
-  Instances:
-    Description: "Information about the instances"
-  Databases: 
-    Description: "Information about the databases"
+  {% if owner_name%}Author: {{ owner_name }} {% endif %}
+  {% if owner_email%}Email: {{ owner_email }}{% endif %}
+  Repository name: {{ _copier_conf.dst_path }}
+  Cloud Canvas boilerplate version: {{ TEMPLATE_VERSION }}
+  Build date: <<<BUILD_DATE>>>
+  Version:
+  License:
 
 Parameters:
 
@@ -81,6 +80,7 @@ Resources:
 {% set lambda_list = lambda_names.split(",") %}
 {% for lambda_name in lambda_list %}
 {% set cleaned_lambda_name = lambda_name|trim|title|replace(" ", "")  %}
+{% set lambda_name_path_safe = lambda_name|trim|replace(" ", "-")|replace("/", "-")|replace("\\", "-")|replace(":", "-")|replace("*", "-")|replace("?", "-")|replace("\"", "-")|replace("<", "-")|replace(">", "-")|replace("|", "-") %}
 {% set cleaned_lambda_slug = lambda_name|trim|slug %}
   ############################################
   # {{ cleaned_lambda_name }} Lambda related
@@ -118,19 +118,15 @@ Resources:
       Handler: lambda_function.lambda_handler
       MemorySize: 1024
       Role: !GetAtt {{ cleaned_lambda_name }}LambdaExecutionRole.Arn
+      {% if include_common_lambda_layer == True %}
       Layers:
-        {% if include_common_lambda_layer == True %}
         - !Ref CommonLambdaLayer
-        {% endif %}
+      {% endif %}
       Runtime: python3.11
       Timeout: 90
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: <<<>>>
-
-
-module-4_lambda_functions_initial-one/
-9a85798546574bb803ba1725cafbff99.zip
+        S3Key: <<<{{ module_name_path_safe }}_lambda_functions_{{ lambda_name_path_safe }}>>>
 
   # {{ lambda_name | title }} Lambda related
   ############################################

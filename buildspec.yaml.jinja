@@ -11,6 +11,7 @@ env:
     - BUILD_ID_DIR
     - LATEST_DIR
     - ARTEFACTS_DIR
+    - BUILD_DATE
 
 phases:
   install:
@@ -47,10 +48,12 @@ phases:
         fi
         export BUILD_ID_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/"
         export LATEST_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_latest/"
-        export ARTEFACTS_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_artefacts/"
+        export ARTEFACTS_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_artefacts"
         export ARTIFACT_BUCKET
         mkdir -p "$BUILD_ID_DIR" "$LATEST_DIR" "$ARTEFACTS_DIR"
 
+        BUILD_DATE=$(date +%Y-%m-%d)
+        export BUILD_DATE
   build:
     commands:
       - echo "Initiating Lambda build and packaging process..."
@@ -66,7 +69,12 @@ phases:
             pushd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}" || exit
 
             lambda_identifier=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum | awk '{print $1}')
-            echo "<<<$LAMBDA_NAME>>>:$lambda_identifier.zip" >> /tmp/lambda_mapping.txt
+
+            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}"
+            mkdir -p "${LAMBDA_SAVE_PATH}"
+
+            # Echo the mapping in the desired format
+            echo "<<<${LAMBDA_NAME}>>>:${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}/${lambda_identifier}.zip" >> /tmp/lambda_mapping.txt
 
             local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}"
             mkdir -p "${LAMBDA_SAVE_PATH}"
@@ -106,6 +114,7 @@ phases:
       - |-
         sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" $(find . -type f) || { echo "Placeholder replacement failed"; exit 1; }
         sed -i "s/<<<ARTIFACT_BUCKET>>>/$ARTIFACT_BUCKET/g" $(find . -type f) || { echo "Placeholder replacement failed"; exit 1; }
+        sed -i "s/<<<BUILD_DATE>>>/$BUILD_DATE/g" $(find . -type f) || { echo "Placeholder replacement failed"; exit 1; }
 
       - echo "Processing lambda_mapping.txt for Lambda name replacement..."
       - |-
@@ -131,7 +140,7 @@ phases:
         rsync -rva "${BUILD_ID_DIR}/" "${LATEST_DIR}/"
 
       - echo "Uploading build artifacts to S3..."
-      - aws s3 cp --recursive "${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}" "s3://${ARTIFACT_BUCKET}/"
+      - aws s3 cp --recursive "${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}" "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}"
 
   post_build:
     commands:
