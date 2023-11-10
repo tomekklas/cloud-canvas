@@ -1,18 +1,20 @@
----
-{% set module_name_path_safe = module_name|trim|replace(" ", "-")|replace("/", "-")|replace("\\", "-")|replace(":", "-")|replace("*", "-")|replace("?", "-")|replace("\"", "-")|replace("<", "-")|replace(">", "-")|replace("|", "-") %}
+{% macro path_safe(name) -%}
+  {{- name | trim | replace(" ", "-") | replace("/", "-") | replace("\\", "-") | replace(":", "-") | replace("*", "-") | replace("?", "-") | replace("\"", "-") | replace("<", "-") | replace(">", "-") | replace("|", "-") -}}
+{%- endmacro %}
+{% set module_name_path_safe = path_safe(module_name) %}
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::LanguageExtensions
 Description: >-   
-  {% if short_module_description%}{{ short_module_description }}{% endif %}
+  {% if short_module_description %}{{ short_module_description }}{% endif %}
 
 Metadata:
-  {% if owner_name%}Author: {{ owner_name }} {% endif %}
-  {% if owner_email%}Email: {{ owner_email }}{% endif %}
+  {% if owner_name %}Author: {{ owner_name }}{% endif %}
+  {% if owner_email %}Email: {{ owner_email }}{% endif %}
   Repository name: {{ _copier_conf.dst_path }}
   Cloud Canvas boilerplate version: {{ TEMPLATE_VERSION }}
   Build date: <<<BUILD_DATE>>>
-  Version:
-  License:
+  #Version:
+  #License:
 
 Parameters:
 
@@ -59,29 +61,29 @@ Mappings:
 
 Resources:
 
-{% if include_common_lambda_layer == True and include_lambda_scaffolding == True %}
+{% if include_common_lambda_layer %}
+{% set shared_lambda_name_path_safe = path_safe(common_lambda_layer_name) %}
   ############################################
-  # Common lambda layer
+  # Common Lambda Layer
   CommonLambdaLayer:
     Type: AWS::Lambda::LayerVersion
-    Properties: 
+    Properties:
+      Description: {{ module_name }} - Common Lambda Layer
       CompatibleRuntimes: 
         - python3.9
       Content: 
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/lambdas/{{ common_lambda_layer_name|trim|slug }}/<<<{{ common_lambda_layer_name|trim|slug }}>>>
-      Description: {{ module_name }} - Common Lambda Layer
-  # Common lambda layer
-  ############################################
+        S3Key: <<<{{- module_name_path_safe -}}_lambda_layers_{{- shared_lambda_name_path_safe -}}>>>
+      
+
 {% endif %}
 
-{% if include_lambda_scaffolding == True %}
+{% if include_lambda_scaffolding %}
 
 {% set lambda_list = lambda_names.split(",") %}
 {% for lambda_name in lambda_list %}
-{% set cleaned_lambda_name = lambda_name|trim|title|replace(" ", "")  %}
-{% set lambda_name_path_safe = lambda_name|trim|replace(" ", "-")|replace("/", "-")|replace("\\", "-")|replace(":", "-")|replace("*", "-")|replace("?", "-")|replace("\"", "-")|replace("<", "-")|replace(">", "-")|replace("|", "-") %}
-{% set cleaned_lambda_slug = lambda_name|trim|slug %}
+{% set cleaned_lambda_name = lambda_name | trim | title | replace(" ", "")  %}
+{% set lambda_name_path_safe = path_safe(lambda_name) %}
   ############################################
   # {{ cleaned_lambda_name }} Lambda related
   {{ cleaned_lambda_name }}LambdaExecutionRole:
@@ -118,7 +120,7 @@ Resources:
       Handler: lambda_function.lambda_handler
       MemorySize: 1024
       Role: !GetAtt {{ cleaned_lambda_name }}LambdaExecutionRole.Arn
-      {% if include_common_lambda_layer == True %}
+      {% if include_common_lambda_layer %}
       Layers:
         - !Ref CommonLambdaLayer
       {% endif %}
@@ -128,7 +130,6 @@ Resources:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
         S3Key: <<<{{ module_name_path_safe }}_lambda_functions_{{ lambda_name_path_safe }}>>>
 
-  # {{ lambda_name | title }} Lambda related
   ############################################
 {% endfor %}
 
