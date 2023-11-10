@@ -22,11 +22,6 @@ PRODUCT_VERSION:
   when: false
   default: v1
 
-# ARTEFACT_BUCKET: # TODO: ask for test and prod buckets? generate when does not exist?
-#   type: str
-#   when: false
-#   default: deployment-idea-test-bucket
-
 # Questionnaire
 module_name:
   type: str
@@ -76,18 +71,9 @@ common_lambda_layer_name: # TODO: make sure it can be used as a directory name
   help: Please provide name of the lambda layer function.
   # TODO: add validator
 
-add_deployment_setup:
-  help: Would you like to add scaffolding of deployment setup?
-  # TODO: add validator
-  choices:
-    - Yes
-    - No
-  default: Yes
-
 deployment_dev_bucket:
   type: str
-  when: "{{ add_deployment_setup == True }}"
-  help: Which PROD bucket will the artifacts be uploaded to?
+  help: Which DEV bucket will the artifacts be uploaded to?
   validator: >-
       {% if not (deployment_dev_bucket) %} #  | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')
       The name must be a valid S3 bucket name.
@@ -95,7 +81,6 @@ deployment_dev_bucket:
 
 deployment_prod_bucket:
   type: str
-  when: "{{ add_deployment_setup == True }}"
   help: Which PROD bucket will the artifacts be uploaded to? It defaults to the dev bucket.
   default: "{{ deployment_dev_bucket }}"
   validator: >-
@@ -112,6 +97,13 @@ deployment_stack_name_prefix:
       {% if not (deployment_stack_name_prefix) %}
       The name must be specified.
       {% endif %}
+
+add_deployment_setup:
+  help: Would you like to add scaffolding of deployment setup?
+  choices:
+    - Yes
+    - No
+  default: Yes
 
 owner_name:
   type: str
@@ -154,6 +146,4 @@ _tasks:
       {% endfor %}
     {% endif %}
   - >-
-    chmod +x codebuild_build.sh
-
-
+    chmod +x codebuild_build.sh local_build.sh

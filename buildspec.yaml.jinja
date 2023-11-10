@@ -6,153 +6,137 @@ env:
     PROJECT_SLUG: {{ _copier_conf.dst_path }}
     BUCKET_NAME_DEV: {{ deployment_dev_bucket }}
     BUCKET_NAME_PROD: {{ deployment_prod_bucket }}
+  exported-variables:
+    - BUILD_ID
+    - BUILD_ID_DIR
+    - LATEST_DIR
+    - ARTEFACTS_DIR
 
 phases:
   install:
     commands:
-      - env
+      - echo "Installing dependencies..."
       - aws --version
       - bash --version
-      - echo "Installing rain v1.6.0"
+      - echo "Installing rain v1.6.0 for YAML formatting"
       - curl -LO https://github.com/aws-cloudformation/rain/releases/download/v1.6.0/rain-v1.6.0_linux-amd64.zip
       - unzip rain-v1.6.0_linux-amd64.zip
       - sudo mv rain-v1.6.0_linux-amd64/rain /usr/local/bin/
       - rm -rf rain-v1.6.0_linux-amd64.zip rain-v1.6.0_linux-amd64
       - rain --version
+
   pre_build:
     commands:
-      - echo "Understanding the environment..."
+      - echo "Setting up environment variables and determining build context..."
       - |-
         if [ -n "$CODEBUILD_BUILD_ID" ]; then
             BUILD_ARN=$(aws codebuild batch-get-builds --ids "$CODEBUILD_BUILD_ID" --query 'builds[0].arn' --output text)
             if [ "$BUILD_ARN" != "None" ]; then
-                echo "Running inside actual AWS CodeBuild."
+                echo "Detected AWS CodeBuild environment."
                 ARTIFACT_BUCKET=${BUCKET_NAME_PROD}
+                BUILD_ID=$(echo $CODEBUILD_BUILD_ID | cut -d ':' -f 2)
             else
-                echo "Running inside local CodeBuild container."
+                echo "Detected local CodeBuild environment."
                 ARTIFACT_BUCKET=${BUCKET_NAME_DEV}
+                BUILD_ID="local-$(date +%Y%m%d%H%M%S)"
             fi
         else
-            echo "Not running inside a CodeBuild environment."
+            echo "Not running in a recognized CodeBuild environment."
             ARTIFACT_BUCKET=${BUCKET_NAME_DEV}
+            BUILD_ID="local-$(date +%Y%m%d%H%M%S)"
         fi
+        export BUILD_ID_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/"
+        export LATEST_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_latest/"
+        export ARTEFACTS_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_artefacts/"
+        export ARTIFACT_BUCKET
+        mkdir -p "$BUILD_ID_DIR" "$LATEST_DIR" "$ARTEFACTS_DIR"
 
   build:
     commands:
+      - echo "Initiating Lambda build and packaging process..."
       - |-
-        BUILD_ID=$(cat /proc/sys/kernel/random/uuid)
-        echo "Build ID: $BUILD_ID"
-        echo "Build started on $(date)"
-        echo "Initiating build and packaging of function..."
-
-      - |-
+        echo "Building Lambda functions"
         build_lambda() {
             local LAMBDA_PATH="$1"
             local ARTIFACT_BUCKET="$2"
-            local LAMBDA_NAME=$(basename "$LAMBDA_PATH")
-            local PARENT_DIR=$(dirname "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}")
+            local RELATIVE_PATH=${LAMBDA_PATH#"./"} # Unique identifier for each Lambda
+            local LAMBDA_NAME=$(echo "${RELATIVE_PATH}" | sed 's|/|_|g')
 
             echo "Building lambda: $LAMBDA_NAME in $LAMBDA_PATH"
-            pushd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}"
+            pushd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}" || exit
 
-            # Compute a cumulative MD5 Hash of all files in the directory
             lambda_identifier=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum | awk '{print $1}')
-
             echo "<<<$LAMBDA_NAME>>>:$lambda_identifier.zip" >> /tmp/lambda_mapping.txt
 
-            # Define the new lambda save path
-            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}/lambdas/${LAMBDA_NAME}"
+            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}"
             mkdir -p "${LAMBDA_SAVE_PATH}"
 
-            # Check S3 for Existing Lambda
-            if aws s3 ls "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}/${VERSION_NUMBER}/lambdas/${LAMBDA_NAME}/${lambda_identifier}.zip"; then
-                echo "Lambda ${LAMBDA_NAME} already exists in S3, skipping build."
-                popd
+            if aws s3 ls "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}/${VERSION_NUMBER}/lambda/${LAMBDA_NAME}/${lambda_identifier}.zip"; then
+                echo "Lambda exists in S3, skipping build."
+                popd || exit
                 return
             fi
 
-            # If no match found in S3, continue the build process
             if [[ -f requirements.txt ]]; then
                 echo "Installing dependencies for $LAMBDA_NAME..."
-                pip install -r requirements.txt -t lib
-            else
-                echo "No requirements.txt found for $LAMBDA_NAME."
+                pip install -r requirements.txt -t lib || { echo "Dependency installation failed"; exit 1; }
             fi
 
-            echo "Listing files for $LAMBDA_NAME:"
-            ls -al
-
+            echo "Zipping deployment package..."
             if find ./lib -mindepth 1 -maxdepth 1 | read; then
-                echo "Zipping deployment package for $LAMBDA_NAME..."
                 pushd lib
-                zip -r9 "../${lambda_identifier}.zip" .
+                zip -r9 "../${lambda_identifier}.zip" . || { echo "Zipping failed"; popd; exit 1; }
                 popd
-            else
-                echo "No deployment package to zip for $LAMBDA_NAME."
             fi
 
             rm -rf lib
-            rm -f requirements.txt
-            zip -g "${lambda_identifier}.zip" *
+            zip -g "${lambda_identifier}.zip" * || { echo "Zipping failed"; exit 1; }
             rm -f lambda_function.py
+            popd || exit
 
-            popd
-
-            # Move the zip file to the new save path
-            mv "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}/${lambda_identifier}.zip" "${LAMBDA_SAVE_PATH}/${lambda_identifier}.zip"
+            mv "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}/${lambda_identifier}.zip" "${LAMBDA_SAVE_PATH}/${lambda_identifier}.zip" || { echo "Moving ZIP file failed"; exit 1; }
             rm -rf "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}"
         }
 
-        echo "Searching for lambda functions and layers..."
-        find . -type d -regex '.*/lambda/functions/[^/]*$' -or -regex '.*/lambda/layers/[^/]*$' | while read -r dir_path; 
-          do
-            build_lambda ${dir_path} ${ARTIFACT_BUCKET}
-          done
+        find . -type d -regex '.*/lambda/functions/[^/]*$' -or -regex '.*/lambda/layers/[^/]*$' | while read -r dir_path; do
+            build_lambda "${dir_path}" "${ARTIFACT_BUCKET}"
+        done
 
+      - echo "Replacing placeholders in configuration files..."
       - |-
-        echo "Replacing placeholders"
-        sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" $(find . -type f)
-        sed -i "s/<<<ARTIFACT_BUCKET>>>/$ARTIFACT_BUCKET/g" $(find . -type f)
+        sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" $(find . -type f) || { echo "Placeholder replacement failed"; exit 1; }
+        sed -i "s/<<<ARTIFACT_BUCKET>>>/$ARTIFACT_BUCKET/g" $(find . -type f) || { echo "Placeholder replacement failed"; exit 1; }
 
-        cat /tmp/lambda_mapping.txt
-
-        # New code to replace Lambda names in templates based on the mapping file
-        while IFS=":" read -r original_name new_name; do
-            find . -type f -name "*.yaml" -exec sed -i "s|${original_name}|${new_name}|g" {} \;
-        done < /tmp/lambda_mapping.txt
-
+      - echo "Processing lambda_mapping.txt for Lambda name replacement..."
       - |-
-        echo "Reformat all non-empty yaml documents"
+        if [ -s /tmp/lambda_mapping.txt ]; then
+            while IFS=":" read -r original_name new_name; do
+                find . -type f -name "*.yaml" -exec sed -i "s|${original_name}|${new_name}|g" {} \; || { echo "Lambda name replacement failed"; exit 1; }
+            done < /tmp/lambda_mapping.txt
+        else
+            echo "/tmp/lambda_mapping.txt is empty or does not exist."
+        fi
+
+      - echo "Formatting YAML files..."
+      - |-
         find . -name "*.yaml" | while read -r file; do
-            if [[ -s "$file" && -n "$(cat "$file" | tr -d '[:space:]')" ]]; then
-                rain fmt "$file" > "${file}.tmp" && mv "${file}.tmp" "$file"
+            if [[ -s "$file" ]]; then
+                rain fmt "$file" > "${file}.tmp" && mv "${file}.tmp" "$file" || { echo "YAML formatting failed"; exit 1; }
             fi
         done
 
+      - echo "Preparing directory structure for S3 upload..."
       - |-
-        echo "Uploading artifacts..."
-        aws s3 cp --recursive "${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}" "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}/${VERSION_NUMBER}/" \
-          --exclude ".copier-answers.yml" \
-          --exclude "buildspec.yaml" \
-          --exclude "build-and-run.sh" \
-          --exclude "codebuild_build.sh"
+        find . -mindepth 1 -maxdepth 1 -type d ! -name "${PROJECT_SLUG##*/}" -exec rsync -rvam {} "${BUILD_ID_DIR}/" \;
+        rsync -rva "${BUILD_ID_DIR}/" "${LATEST_DIR}/"
 
-      - |-
-        echo "##### UPDATING STATIC REFERENCES #####"
-        find . -type f \( -name "*stack.yaml" -or -name "step_function_definition.yaml" \) | while read -r filepath; do
-            filepath_cleaned=$(echo "$filepath" | sed 's|^./||')
-            base_filename=$(basename "$filepath_cleaned")
-            dir=$(echo "$filepath_cleaned" | awk -F'/' '{print $2}')
-            echo "URL: https://${ARTIFACT_BUCKET}.s3.eu-central-1.amazonaws.com/${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/${dir}/${base_filename}"
-            aws s3 cp "${CODEBUILD_SRC_DIR}/${filepath_cleaned}" "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}/${VERSION_NUMBER}/templates/${BUILD_ID}/${filepath_cleaned}"
-        done
-        echo "##### REFERENCES UPDATED SUCCESSFULLY #####"
-
+      - echo "Uploading build artifacts to S3..."
+      - aws s3 cp --recursive "${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}" "s3://${ARTIFACT_BUCKET}/"
 
   post_build:
     commands:
-      - echo "Post-build steps..."
-      - echo "Your CodeBuild process has completed successfully!"
+      - echo "Post-build cleanup and finalization..."
+      - echo "CodeBuild process completed successfully!"
 
 artifacts:
   discard-paths: no
