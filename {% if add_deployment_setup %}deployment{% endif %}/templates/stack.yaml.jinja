@@ -36,6 +36,11 @@ Parameters:
       - Dev
       - Prod
 
+  ProcessingRoleToAssume:
+    Type: String
+    Description: The name of the specific role that StepFunctionRole can assume in spoke accounts
+    Default: CloudCanvasGeneric
+
   LogRetentionInDays:
     Type: Number
     Default: 180
@@ -103,6 +108,13 @@ Resources:
       ManagedPolicyArns:
         - !If [ IsDev, arn:aws:iam::aws:policy/AdministratorAccess, !Ref AWS::NoValue ]
       Policies:
+      - PolicyName: AllowProcessingRoleAssumption
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Resource: !Sub arn:aws:iam::*:role/${ProcessingRoleToAssume}
+            Action: sts:AssumeRole
       - PolicyName: AllowLambdaLogs
         PolicyDocument:
           Version: '2012-10-17'
@@ -153,6 +165,13 @@ Resources:
       ManagedPolicyArns:
         - !If [ IsDev, arn:aws:iam::aws:policy/AdministratorAccess, !Ref AWS::NoValue ]
       Policies:
+      - PolicyName: AllowProcessingRoleAssumption
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Resource: !Sub arn:aws:iam::*:role/${ProcessingRoleToAssume}
+            Action: sts:AssumeRole
       - PolicyName: AllowLambdaLogs
         PolicyDocument:
           Version: '2012-10-17'
@@ -178,6 +197,7 @@ Resources:
           ApiDomain: !Ref ApiDomain
           ApiVersion: !Ref ApiVersion
           ApiKey: !Ref ApiKey
+          DefaultRoleArnToAssume: {{ deployment_default_role_to_assume }}
       Layers:
         - !Ref UtilitiesLambdaLayer
       Runtime: python3.11
@@ -204,6 +224,13 @@ Resources:
       ManagedPolicyArns:
         - !If [ IsDev, arn:aws:iam::aws:policy/AdministratorAccess, !Ref AWS::NoValue ]
       Policies:
+        - PolicyName: AllowProcessingRoleAssumption
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Effect: Allow
+              Resource: !Sub arn:aws:iam::*:role/${ProcessingRoleToAssume}
+              Action: sts:AssumeRole
         - PolicyName: StepFunctionPolicy
           PolicyDocument: 
             Version: '2012-10-17'

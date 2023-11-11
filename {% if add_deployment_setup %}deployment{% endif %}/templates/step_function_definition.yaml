@@ -8,7 +8,6 @@ States:
     ResultPath: $.contextDetails
     Comment: Extract the execution ARN and store in contextDetails.
     Next: Validate input
-
   Validate input:
     Type: Task
     Resource: arn:aws:states:::lambda:invoke
@@ -97,6 +96,8 @@ States:
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
           Resource: arn:aws:states:::aws-sdk:cloudformation:describeStacks
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
           Catch:
           - ErrorEquals:
             - States.TaskFailed
@@ -129,11 +130,15 @@ States:
             - ParameterKey: Environment
               ParameterValue.$: States.Format('{}', $.Parameters.Parameters.Environment)
           Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
           Next: Wait for Create / Update action
           ResultPath:
         Create the stack:
           Type: Task
           Next: Wait for Create / Update action
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
             TemplateURL.$: States.Format('{}', $.Parameters.TemplateUrl)
@@ -149,6 +154,8 @@ States:
         Check CloudFormation action status:
           Type: Task
           Next: Decide what to do based on current CloudFormation execution status
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
           Resource: arn:aws:states:::aws-sdk:cloudformation:describeStacks
@@ -178,6 +185,8 @@ States:
           Type: Fail
         DeleteStack:
           Type: Task
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
           Resource: arn:aws:states:::aws-sdk:cloudformation:deleteStack
@@ -189,6 +198,8 @@ States:
           Next: DescribeStacks
         DescribeStacks:
           Type: Task
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
           Parameters:
             StackName.$: States.Format('{}', $.Parameters.StackPrefix)
           Resource: arn:aws:states:::aws-sdk:cloudformation:describeStacks

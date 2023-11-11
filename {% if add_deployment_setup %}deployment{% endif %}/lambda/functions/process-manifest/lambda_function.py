@@ -8,16 +8,18 @@ API_DOMAIN = os.environ['ApiDomain']
 API_VERSION = os.environ['ApiVersion']
 S3_BUCKET = os.environ['ConfigS3Bucket']
 S3_BUCKET_PREFIX = os.environ['ConfigS3Prefix']
+DEFAULT_ROLE_NAME_TO_ASSUME = os.environ.get('DefaultRoleArnToAssume')
 
 s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
-
+    
     try:
 
-        # Extract StackPrefix and TemplateUrl
+        # Extract
         stack_prefix = event["StackPrefix"]
         template_url = event["TemplateUrl"]
+        role_to_assume = event.get("RoleToAssume", DEFAULT_ROLE_NAME_TO_ASSUME)
 
         # Extract the execution ID from the event
         execution_arn = event.get('contextDetails', {}).get('arn', '')
@@ -56,6 +58,7 @@ def lambda_handler(event, context):
                 "StackPrefix": stack_prefix,
                 "TemplateUrl": template_url,
                 "AccountId": account['id'],
+                "RoleArnToAssume": f"arn:aws:iam::{account['id']}:role/{role_to_assume}",
                 "Parameters": parameters
             })
             s3_key = f"{S3_BUCKET_PREFIX}/{execution_id}/{account['id']}.json"

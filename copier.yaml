@@ -103,6 +103,16 @@ deployment_stack_name_prefix:
     The name must be specified.
     {% endif %}
 
+deployment_default_role_to_assume:
+  type: str
+  when: "{{ add_deployment_setup == True }}"
+  help: Role to assume when deploing to other accounts
+  default: "CrossAccountAdminRole"
+  validator: >-
+    {% if not (deployment_default_role_to_assume) %}
+    The name must be specified.
+    {% endif %}
+
 owner_name:
   type: str
   help: Please provide name of the project owner name (press Enter to skip)
