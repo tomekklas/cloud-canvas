@@ -12,15 +12,21 @@ S3_BUCKET_PREFIX = os.environ['ConfigS3Prefix']
 s3_client = boto3.client('s3')
 
 def lambda_handler(event, context):
+
     try:
+
         # Extract StackPrefix and TemplateUrl
         stack_prefix = event["StackPrefix"]
         template_url = event["TemplateUrl"]
 
+        # Extract the execution ID from the event
+        execution_arn = event.get('contextDetails', {}).get('arn', '')
+        execution_id = execution_arn.split(':')[-1]
+
         # Determine the operation type: Create or Delete
         operation_type = "Create" if "Create" in event else "Delete"
         operation_details = event[operation_type]
-        
+
         include_details = operation_details["Include"]
         parameters = operation_details.get("Parameters", {})  # Using get to handle missing Parameters
 
@@ -52,7 +58,7 @@ def lambda_handler(event, context):
                 "AccountId": account['id'],
                 "Parameters": parameters
             })
-            s3_key = f"{S3_BUCKET_PREFIX}/{context.aws_request_id}/{account['id']}.json"
+            s3_key = f"{S3_BUCKET_PREFIX}/{execution_id}/{account['id']}.json"
             s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=file_content)
             
         return {
@@ -60,14 +66,15 @@ def lambda_handler(event, context):
             'body': {
                 'message': 'Process completed.',
                 'Bucket': S3_BUCKET,
-                'Prefix': f"{S3_BUCKET_PREFIX}/{context.aws_request_id}/"
+                'Prefix': f"{S3_BUCKET_PREFIX}/{execution_id}/"
             }
         }
     
     except Exception as e:
+        error_message = str(e)
         return {
             'statusCode': 500,
-            'body': json.dumps(str(e))
+            'body': json.dumps({'error': error_message})
         }
 
 def gather_accounts(details):
@@ -75,7 +82,7 @@ def gather_accounts(details):
 
     # Fetch account details if present
     if "Accounts" in details:
-        account_ids_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/account_id/{','.join(map(str, details['Accounts']))}"
+        account_ids_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/account/{','.join(map(str, details['Accounts']))}"
         all_accounts += query_api(account_ids_url)
     
     # Fetch OUs details if present

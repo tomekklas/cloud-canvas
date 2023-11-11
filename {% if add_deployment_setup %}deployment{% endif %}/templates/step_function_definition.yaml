@@ -1,6 +1,13 @@
 ---
-StartAt: Validate input
+StartAt: ExtractContextDetails
 States:
+  ExtractContextDetails:
+    Type: Pass
+    Parameters:
+      arn.$: "$$.Execution.Id"
+    ResultPath: $.contextDetails
+    Next: Validate input
+
   Validate input:
     Type: Task
     Resource: arn:aws:states:::lambda:invoke
@@ -60,12 +67,12 @@ States:
         Mode: DISTRIBUTED
         ExecutionType: STANDARD
       StartAt: Get config from S3
-      States:
+      States: #TODO: abstract this to another template and join at build time using Rain?
         Get config from S3:
           Type: Task
           Next: What action is required?
           Parameters:
-            Bucket: deployment-idea-test-bucket
+            Bucket: deployment-idea-test-bucket # TODO: this needs to be dynamic
             Key.$: "$.Key"
           Resource: arn:aws:states:::aws-sdk:s3:getObject
           ResultSelector:

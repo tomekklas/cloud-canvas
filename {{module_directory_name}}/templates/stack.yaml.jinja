@@ -134,7 +134,7 @@ Resources:
   {{ cleaned_lambda_name }}LambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub /aws/lambda/${InitialOneLambda}
+      LogGroupName: /aws/lambda/{{cleaned_lambda_name}}Lambda
       RetentionInDays: !Ref LogRetentionInDays
   # {{ cleaned_lambda_name }} Lambda related
   ############################################

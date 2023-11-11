@@ -86,21 +86,22 @@ deployment_prod_bucket:
     The name must be a valid S3 bucket name.
     {% endif %}
 
-deployment_stack_name_prefix:
-  type: str
-  when: "{{ add_deployment_setup == True }}"
-  help: Defines CloudFormation stack prefix.
-  validator: >-
-    {% if not (deployment_stack_name_prefix) %}
-    The name must be specified.
-    {% endif %}
-
 add_deployment_setup:
   help: Would you like to add scaffolding of deployment setup?
   choices:
     - Yes
     - No
   default: Yes
+
+deployment_stack_name_prefix:
+  type: str
+  when: "{{ add_deployment_setup == True }}"
+  help: Defines CloudFormation stack prefix.
+  # default: "{{ _copier_conf.dst_path }}-deployment"
+  validator: >-
+    {% if not (deployment_stack_name_prefix) %}
+    The name must be specified.
+    {% endif %}
 
 owner_name:
   type: str
@@ -127,7 +128,7 @@ owner_email:
 copyright_license:
   type: str
   help: Your project's license
-  default: ISC License
+  default: Apache License 2.0
   choices:
     - Academic Free License v3.0
     - Apache License 2.0
@@ -191,9 +192,9 @@ _tasks:
         cp -rf {{ module_directory_name }}/lambda/functions/blueprint {{ module_directory_name }}/lambda/functions/{{ lambda_name|trim|slug }}
       {% endfor %}
     {% endif %}
-  - >-
-    # Make certain files executable
-    chmod +x codebuild_build.sh local_build.sh scripts/post_generate.py
+  - chmod +x codebuild_build.sh 
+  - chmod +x local_build.sh
+  - chmod +x scripts/post_generate.py
   - >-
     # Pretty format all cloudformation yaml templates using aws rain
   # - /usr/bin/python3 scripts/post_generate.py

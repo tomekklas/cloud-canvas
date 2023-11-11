@@ -1,4 +1,4 @@
-{% set module_name_path_safe = "deployment" %}
+{% set module_name_path_safe = "deployment" -%}
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::LanguageExtensions
@@ -9,12 +9,25 @@ Metadata:
   {% if owner_name %}Author: {{ owner_name }}{% endif %}
   {% if owner_email %}Email: {{ owner_email }}{% endif %}
   Repository name: {{ _copier_conf.dst_path }}
-  Cloud Canvas boilerplate version: {{ TEMPLATE_VERSION }}
+  Cloud Canvas version: {{ CLOUD_CANVAS_TEMPLATE_VERSION }}
   Build date: <<<BUILD_DATE>>>
-  #Version:
+  Version: {{ PRODUCT_VERSION }}
   #License:
 
 Parameters:
+
+  ApiDomain:
+    Type: String
+    Description: TODO Pass in more secure way
+
+  ApiVersion:
+    Type: String
+    Description: TODO Pass in more secure way
+
+  ApiKey:
+    Type: String
+    NoEcho: true
+    Description: TODO Pass in more secure way
 
   Environment:
     Type: String
@@ -48,6 +61,13 @@ Parameters:
 Conditions: 
   IsProd: !Equals [!Ref Environment, Prod]
   IsDev: !Equals [!Ref Environment, Dev]
+
+Mappings:
+  Environment:
+    Dev:
+      StateMachineLogLevel: ALL
+    Prod:
+      StateMachineLogLevel: ERROR
 
 Resources:
 
@@ -105,6 +125,9 @@ Resources:
         - !Ref UtilitiesLambdaLayer
       Runtime: python3.11
       Timeout: 90
+      Environment:
+        Variables:
+          LOG_LEVEL: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
         S3Key: <<<{{- module_name_path_safe -}}_lambda_functions_validate-input>>>
@@ -152,9 +175,9 @@ Resources:
         Variables: 
           ConfigS3Bucket: <<<ARTIFACT_BUCKET>>>
           ConfigS3Prefix: config/{{ _copier_conf.dst_path }}
-          ApiKey: "zGNDlMSXUq2KFW8H8ClzJ8E2fWvZf5of8xRELctc" # TODO: this needs to go to secrets manager
-          ApiDomain: "3n7oqxmsm5.execute-api.eu-central-1.amazonaws.com"
-          ApiVersion: "poc"
+          ApiDomain: !Ref ApiDomain
+          ApiVersion: !Ref ApiVersion
+          ApiKey: !Ref ApiKey
       Layers:
         - !Ref UtilitiesLambdaLayer
       Runtime: python3.11

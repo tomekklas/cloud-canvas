@@ -79,7 +79,7 @@ phases:
             local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}"
             mkdir -p "${LAMBDA_SAVE_PATH}"
 
-            if aws s3 ls "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}/${VERSION_NUMBER}/lambda/${LAMBDA_NAME}/${lambda_identifier}.zip"; then
+            if aws s3 ls "s3://${ARTIFACT_BUCKET}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}/${lambda_identifier}.zip"; then
                 echo "Lambda exists in S3, skipping build."
                 popd || exit
                 return
