@@ -11,13 +11,15 @@ _jinja_extensions:
     - jinja2_slug.SlugExtension
     - jinja2_time.TimeExtension
 
+_post_generate: scripts/post_generate.py
+
 # Constants
-TEMPLATE_VERSION:
+CLOUD_CANVAS_TEMPLATE_VERSION:
   type: str
   when: false
   default: v0.1
 
-PRODUCT_VERSION:
+PRODUCT_VERSION: # perhasp this should be one of the questions?
   type: str
   when: false
   default: v1
@@ -27,16 +29,15 @@ module_name:
   type: str
   help: Choose a descriptive name for the module.
   validator: >-
-      {% if not (module_name | regex_search('^(?! *$)(?!deployment$).+$')) %}
-      Module name can not start or end with a space. "Deployment" word is reserved and can not be used.
-      {% endif %}
+    {% if not (module_name | regex_search('^(?! *$)(?!deployment$).+$')) %}
+    Module name can not start or end with a space. "Deployment" word is reserved and can not be used.
+    {% endif %}
 
 # TODO: on re-generatin this remembers previous invokation value, not current one 
 module_directory_name:
   type: str
   default: "{{ module_name | replace(' ', '-') | regex_replace('[^a-zA-Z0-9-]', '') | lower }}"
   help: Please provide module directory name (suggested based on previous answer)
-  # TODO: add validator
 
 short_module_description:
   type: str
@@ -54,49 +55,45 @@ lambda_names:
   type: str
   when: "{{ include_lambda_scaffolding == True }}"
   help: Please list your lambda names separated by commas.
-  # TODO: add validator
-    # deduplicate names
 
 include_common_lambda_layer:
-  help: Would you like to common lambda layer?
+  help: Would you like to build and include common lambda layer?
   when: "{{ include_lambda_scaffolding == True }}"
   choices:
     - Yes
     - No
   default: Yes
 
-common_lambda_layer_name: # TODO: make sure it can be used as a directory name
+common_lambda_layer_name:
   type: str
   when: "{{ include_lambda_scaffolding == True and include_common_lambda_layer == True }}"
   help: Please provide name of the lambda layer function.
-  # TODO: add validator
 
 deployment_dev_bucket:
   type: str
   help: Which DEV bucket will the artifacts be uploaded to?
   validator: >-
-      {% if not (deployment_dev_bucket) %} #  | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')
-      The name must be a valid S3 bucket name.
-      {% endif %}
+    {% if not (deployment_dev_bucket) %} #  | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')
+    The name must be a valid S3 bucket name.
+    {% endif %}
 
 deployment_prod_bucket:
   type: str
   help: Which PROD bucket will the artifacts be uploaded to? It defaults to the dev bucket.
   default: "{{ deployment_dev_bucket }}"
   validator: >-
-      {% if not (deployment_prod_bucket | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')) %}
-      The name must be a valid S3 bucket name.
-      {% endif %}
+    {% if not (deployment_prod_bucket | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')) %}
+    The name must be a valid S3 bucket name.
+    {% endif %}
 
 deployment_stack_name_prefix:
   type: str
   when: "{{ add_deployment_setup == True }}"
   help: Defines CloudFormation stack prefix.
-  # default: "{{ deployment_dev_bucket }}"
   validator: >-
-      {% if not (deployment_stack_name_prefix) %}
-      The name must be specified.
-      {% endif %}
+    {% if not (deployment_stack_name_prefix) %}
+    The name must be specified.
+    {% endif %}
 
 add_deployment_setup:
   help: Would you like to add scaffolding of deployment setup?
@@ -112,10 +109,59 @@ owner_name:
 
 owner_email:
   type: str
-  help: Please provide name of the project owner email (press Enter to skip)
+  help: Please provide one or more comma-separated emails of the project owner (press Enter to skip).
   default: ""
-  # TODO: add validator
+  validator: >-
+    {% set email_pattern = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$' %}
+    {% set emails = owner_email.split(',') %}
+    {% set is_valid = true %}
+    {% for email in emails %}
+      {% if not email | trim | regex_search(email_pattern) %}
+        {% set is_valid = false %}
+      {% endif %}
+    {% endfor %}
+    {% if not is_valid %}
+      Invalid email address(es) provided.
+    {% endif %}
 
+copyright_license:
+  type: str
+  help: Your project's license
+  default: ISC License
+  choices:
+    - Academic Free License v3.0
+    - Apache License 2.0
+    - Artistic License 2.0
+    - BSD 2-Clause "Simplified" License
+    - BSD 3-Clause Clear License
+    - BSD 3-Clause "New" or "Revised" License
+    - Boost Software License 1.0
+    - Creative Commons Attribution 4.0
+    - Creative Commons Attribution Share Alike 4.0
+    - Creative Commons Zero v1.0 Universal
+    - Do What The F*ck You Want To Public License
+    - Educational Community License v2.0
+    - Eclipse Public License 1.0
+    - Eclipse Public License 2.0
+    - European Union Public License 1.1
+    - European Union Public License 1.2
+    - GNU Affero General Public License v3.0
+    - GNU General Public License v2.0
+    - GNU General Public License v3.0
+    - GNU Lesser General Public License v2.1
+    - GNU Lesser General Public License v3.0
+    - ISC License
+    - LaTeX Project Public License v1.3c
+    - MIT License
+    - Mozilla Public License 2.0
+    - Microsoft Public License
+    - Microsoft Reciprocal License
+    - University of Illinois/NCSA Open Source License
+    - SIL Open Font License 1.1
+    - Open Software License 3.0
+    - PostgreSQL License
+    - The Unlicense
+    - zlib License
 
 _message_before_copy: |
     Thank you for generating a project using Cloud Canvas.
@@ -146,6 +192,8 @@ _tasks:
       {% endfor %}
     {% endif %}
   - >-
-    # TODO: Pretty format all templates
+    # Make certain files executable
+    chmod +x codebuild_build.sh local_build.sh scripts/post_generate.py
   - >-
-    chmod +x codebuild_build.sh local_build.sh
+    # Pretty format all cloudformation yaml templates using aws rain
+  # - /usr/bin/python3 scripts/post_generate.py
