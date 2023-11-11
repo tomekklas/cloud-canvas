@@ -6,6 +6,7 @@ States:
     Parameters:
       arn.$: "$$.Execution.Id"
     ResultPath: $.contextDetails
+    Comment: Extract the execution ARN and store in contextDetails.
     Next: Validate input
 
   Validate input:
@@ -28,8 +29,13 @@ States:
     - ErrorEquals:
       - ManifestValidationError
       Next: ValidationError
-    Comment: this is a test comment
+    Comment: Invoke Lambda to validate input. Retry on specific Lambda errors. Catch validation errors.
     Next: Process the payload
+  ValidationError:
+    Type: Fail
+    Error: ManifestValidationError
+    Cause: "The Lambda function returned a ManifestValidationError."
+    Comment: "Fail state for manifest validation errors."
   Process the payload:
     Type: Task
     Resource: arn:aws:states:::lambda:invoke
@@ -48,15 +54,12 @@ States:
       BackoffRate: 2
     Comment: this is a test comment
     Next: Map the process
-  ValidationError:
-    Type: Fail
-    Error: ManifestValidationError
-    Cause: The Lambda function returned a ManifestValidationError.
   Map the process:
     Type: Map
     ToleratedFailurePercentage: 50
     ItemsPath: "$"
     End: true
+    Comment: Distributed map processing. Iterates over each item, processing it based on defined steps.
     ItemReader:
       Resource: arn:aws:states:::s3:listObjectsV2
       Parameters:
@@ -71,8 +74,9 @@ States:
         Get config from S3:
           Type: Task
           Next: What action is required?
+          Comment: Retrieve configuration from S3 based on the provided key.
           Parameters:
-            Bucket: deployment-idea-test-bucket # TODO: this needs to be dynamic
+            Bucket: <<<ARTIFACT_BUCKET>>>
             Key.$: "$.Key"
           Resource: arn:aws:states:::aws-sdk:s3:getObject
           ResultSelector:
@@ -199,7 +203,8 @@ States:
         What is stack deletion status?:
           Type: Choice
           Choices:
-          - Variable: "$.StackStatus.Status"
-            StringEquals: DELETE_IN_PROGRESS
-            Next: Wait for Delete action
+            - Variable: "$.StackStatus.Status"
+              StringEquals: DELETE_IN_PROGRESS
+              Next: Wait for Delete action
           Default: Pass
+          Comment: Decide the next action based on the CloudFormation stack's deletion status.
