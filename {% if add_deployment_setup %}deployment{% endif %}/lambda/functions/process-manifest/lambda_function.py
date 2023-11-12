@@ -85,7 +85,7 @@ def gather_accounts(details):
 
     # Fetch account details if present
     if "Accounts" in details:
-        account_ids_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/account/{','.join(map(str, details['Accounts']))}"
+        account_ids_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/account_id/{','.join(map(str, details['Accounts']))}"
         all_accounts += query_api(account_ids_url)
     
     # Fetch OUs details if present
