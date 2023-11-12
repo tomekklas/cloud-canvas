@@ -55,7 +55,7 @@ States:
     Next: Map the process
   Map the process:
     Type: Map
-    ToleratedFailurePercentage: 50
+    ToleratedFailurePercentage: 10
     ItemsPath: "$"
     End: true
     Comment: Distributed map processing. Iterates over each item, processing it based on defined steps.
