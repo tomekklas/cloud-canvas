@@ -11,10 +11,10 @@ States:
   Validate input:
     Type: Task
     Resource: arn:aws:states:::lambda:invoke
-    OutputPath: "$.Payload"
     Parameters:
       Payload.$: "$"
       FunctionName: ${ValidateInputLambda}
+    OutputPath: "$.Payload"
     Retry:
     - ErrorEquals:
       - Lambda.ServiceException
@@ -72,12 +72,12 @@ States:
       States: #TODO: abstract this to another template and join at build time using Rain?
         Get config from S3:
           Type: Task
+          Resource: arn:aws:states:::aws-sdk:s3:getObject
           Next: What action is required?
           Comment: Retrieve configuration from S3 based on the provided key.
           Parameters:
             Bucket: <<<ARTIFACT_BUCKET>>>
             Key.$: "$.Key"
-          Resource: arn:aws:states:::aws-sdk:s3:getObject
           ResultSelector:
             Parameters.$: States.StringToJson($.Body)
         What action is required?:
@@ -129,6 +129,7 @@ States:
             Parameters:
             - ParameterKey: Environment
               ParameterValue.$: States.Format('{}', $.Parameters.Parameters.Environment)
+            Tags.$: "$.Parameters.Tags"
           Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
           Credentials:
             RoleArn.$: $.Parameters.RoleArnToAssume
@@ -145,6 +146,7 @@ States:
             Capabilities:
             - CAPABILITY_AUTO_EXPAND
             - CAPABILITY_IAM
+            Tags.$: "$.Parameters.Tags"
           Resource: arn:aws:states:::aws-sdk:cloudformation:createStack
           ResultPath:
         Wait for Create / Update action:

@@ -23,7 +23,7 @@
                         },
                         "OUs": {
                             "type": "array",
-                            "items": {"type": "string", "pattern": "^ou-[a-zA-Z0-9_-]{4,32}$"}
+                            "items": {"type": "string", "pattern": "^(ou-[a-zA-Z0-9_-]{4,32}|r-[a-z]{4})$"}
                         },
                         "Tags": {
                             "type": "object",
@@ -49,7 +49,7 @@
                         },
                         "OUs": {
                             "type": "array",
-                            "items": {"type": "string", "pattern": "^ou-[a-zA-Z0-9_-]{4,32}$"}
+                            "items": {"type": "string", "pattern": "^(ou-[a-zA-Z0-9_-]{4,32}|r-[a-z]{4})$"}
                         },
                         "Tags": {
                             "type": "object",
@@ -90,7 +90,7 @@
                         },
                         "OUs": {
                             "type": "array",
-                            "items": {"type": "string", "pattern": "^ou-[a-zA-Z0-9_-]{4,32}$"}
+                            "items": {"type": "string", "pattern": "^(ou-[a-zA-Z0-9_-]{4,32}|r-[a-z]{4})$"}
                         },
                         "Tags": {
                             "type": "object",
@@ -116,7 +116,7 @@
                         },
                         "OUs": {
                             "type": "array",
-                            "items": {"type": "string", "pattern": "^ou-[a-zA-Z0-9_-]{4,32}$"}
+                            "items": {"type": "string", "pattern": "^(ou-[a-zA-Z0-9_-]{4,32}|r-[a-z]{4})$"}
                         },
                         "Tags": {
                             "type": "object",
