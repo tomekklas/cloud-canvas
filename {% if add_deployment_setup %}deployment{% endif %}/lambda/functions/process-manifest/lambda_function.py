@@ -3,6 +3,7 @@ import json
 import boto3
 import requests
 
+# Environment variables
 API_KEY = os.environ['ApiKey']
 API_DOMAIN = os.environ['ApiDomain']
 API_VERSION = os.environ['ApiVersion']
@@ -10,106 +11,141 @@ S3_BUCKET = os.environ['ConfigS3Bucket']
 S3_BUCKET_PREFIX = os.environ['ConfigS3Prefix']
 DEFAULT_ROLE_NAME_TO_ASSUME = os.environ.get('DefaultRoleArnToAssume')
 
-s3_client = boto3.client('s3')
-
 def lambda_handler(event, context):
-    
-    try:
+    # Extract values from the event
+    stack_prefix = event["StackPrefix"]
+    template_url = event["TemplateUrl"]
+    role_to_assume = event.get("RoleToAssume", DEFAULT_ROLE_NAME_TO_ASSUME)
 
-        # Extract
-        stack_prefix = event["StackPrefix"]
-        template_url = event["TemplateUrl"]
-        role_to_assume = event.get("RoleToAssume", DEFAULT_ROLE_NAME_TO_ASSUME)
+    # Extract the execution ID from the event
+    execution_arn = event.get('contextDetails', {}).get('arn', '')
+    execution_id = execution_arn.split(':')[-1]
 
-        # Extract the execution ID from the event
-        execution_arn = event.get('contextDetails', {}).get('arn', '')
-        execution_id = execution_arn.split(':')[-1]
+    # Determine the operation type: Create or Delete
+    operation_type = "Create" if "Create" in event else "Delete"
+    operation_details = event[operation_type]
 
-        # Determine the operation type: Create or Delete
-        operation_type = "Create" if "Create" in event else "Delete"
-        operation_details = event[operation_type]
+    # Process include and exclude criteria
+    included_accounts = process_criteria(operation_details.get('Include', {}))
+    excluded_accounts = process_criteria(operation_details.get('Exclude', {}))
 
-        include_details = operation_details["Include"]
-        parameters = operation_details.get("Parameters", {})  # Using get to handle missing Parameters
+    # Deduplicate and filter out excluded accounts
+    included_accounts = deduplicate_accounts(included_accounts)
+    excluded_account_ids = {acc['id'] for acc in excluded_accounts}
+    final_accounts = [acc for acc in included_accounts if acc['id'] not in excluded_account_ids]
 
-        # Ensure at least one criterion (Accounts, OUs, Tags) is present under Include.
-        if not any(criterion in include_details for criterion in ['Accounts', 'OUs', 'Tags']):
-            raise Exception("At least one criterion (Accounts, OUs, Tags) must be present under Include.")
-        
-        # Gather accounts from Include criteria
-        include_accounts = gather_accounts(include_details)
-        
-        # Extract exclude details if present and gather accounts
-        exclude_accounts = []
-        if "Exclude" in operation_details:
-            exclude_details = operation_details["Exclude"]
-            exclude_accounts = gather_accounts(exclude_details)
-        
-        # Exclude the accounts specified in the Exclude section from the Include accounts
-        final_accounts = [account for account in include_accounts if account['id'] not in [excl['id'] for excl in exclude_accounts]]
-        
-        # Remove non-ACTIVE accounts and deduplicate
-        active_accounts = {account['id']: account for account in final_accounts if account['status'] == 'ACTIVE'}.values()
+    # Initialize the S3 client
+    s3_client = boto3.client('s3')
 
-        # Create files in S3 for each of the resultant active accounts
-        for account in active_accounts:
-            file_content = json.dumps({
-                "Action": operation_type,
-                "StackPrefix": stack_prefix,
-                "TemplateUrl": template_url,
-                "AccountId": account['id'],
-                "RoleArnToAssume": f"arn:aws:iam::{account['id']}:role/{role_to_assume}",
-                "Parameters": parameters
-            })
-            s3_key = f"{S3_BUCKET_PREFIX}/{execution_id}/{account['id']}.json"
-            s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=file_content)
-            
-        return {
-            'statusCode': 200,
-            'body': {
-                'message': 'Process completed.',
-                'Bucket': S3_BUCKET,
-                'Prefix': f"{S3_BUCKET_PREFIX}/{execution_id}/"
-            }
+    # Loop through each account in final_accounts and create a file in S3
+    for account in final_accounts:
+        file_content = json.dumps({
+            "Action": operation_type,
+            "StackPrefix": stack_prefix,
+            "TemplateUrl": template_url,
+            "AccountId": account['id'],
+            "RoleArnToAssume": f"arn:aws:iam::{account['id']}:role/{role_to_assume}",
+            "Parameters": operation_details.get('Parameters', {}),
+            "Tags": operation_details.get('Tags', {}),
+        })
+        s3_key = f"{S3_BUCKET_PREFIX}/{execution_id}/{account['id']}.json"
+        print(s3_key)
+        s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=file_content)
+
+    return {
+        'statusCode': 200,
+        'body': {
+            'message': 'Process completed.',
+            'Bucket': S3_BUCKET,
+            'Prefix': f"{S3_BUCKET_PREFIX}/{execution_id}/"
         }
-    
-    except Exception as e:
-        error_message = str(e)
-        return {
-            'statusCode': 500,
-            'body': json.dumps({'error': error_message})
-        }
-
-def gather_accounts(details):
-    all_accounts = []
-
-    # Fetch account details if present
-    if "Accounts" in details:
-        account_ids_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/account_id/{','.join(map(str, details['Accounts']))}"
-        all_accounts += query_api(account_ids_url)
-    
-    # Fetch OUs details if present
-    if "OUs" in details:
-        ou_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/ou/{','.join(details['OUs'])}"
-        all_accounts += query_api(ou_url)
-    
-    # Fetch tags details if present
-    if "Tags" in details:
-        tags_params = ','.join([f"{k}:{v}" for k, v in details["Tags"].items()])
-        tags_url = f"https://{API_DOMAIN}/{API_VERSION}/aws-org-metadata/tags/{tags_params}"
-        all_accounts += query_api(tags_url)
-    
-    return all_accounts
-
-def query_api(url):
-    headers = {
-        'x-api-key': API_KEY
     }
-    response = requests.get(url, headers=headers)
-    response.raise_for_status()
-    
-    data = response.json()
-    if 'error' in data:
-        raise Exception(data['error'])
-    
-    return data
+    return {
+        "statusCode": 200,
+        "body": json.dumps("Process completed successfully.")
+    }
+
+def call_api(endpoint, params=None):
+    """
+    Makes a GET request to the specified API endpoint with the given parameters.
+    Ignores responses with 'No items found' message.
+
+    :param endpoint: The API endpoint to call (e.g., 'account_id', 'ou', or 'tags')
+    :param params: The parameters for the API call
+    :return: JSON response from the API or None if 'No items found'
+    """
+    # Construct the full URL
+    url = f"{API_DOMAIN}/{API_VERSION}/aws-org-metadata/{endpoint}"
+
+    # Set the headers for authentication
+    headers = {'x-api-key': API_KEY}
+
+    try:
+        # Make the GET request
+        response = requests.get(url, headers=headers, params=params)
+
+        # Check if the request was successful
+        if response.status_code == 200:
+            response_data = response.json()
+
+            # Check if response_data is a list
+            if isinstance(response_data, list):
+                # Process list data (if needed)
+                return response_data
+
+            # If response_data is a dictionary, check for 'No items found' message
+            if isinstance(response_data, dict) and response_data.get('message') == 'No items found':
+                # Return None or an empty list if no items are found
+                return None
+
+            return response_data
+        else:
+            print(f"Error: Unable to call API. Status code: {response.status_code}")
+            return None
+    except requests.RequestException as e:
+        print(f"Error: Exception during API call. Details: {e}")
+        return None
+
+def deduplicate_accounts(account_details):
+    """
+    Deduplicates a list of account details based on account IDs.
+
+    :param account_details: List of dictionaries containing account details.
+    :return: Deduplicated list of account details.
+    """
+    unique_accounts = {}
+    for account in account_details:
+        account_id = account.get('id')
+        if account_id:
+            unique_accounts[account_id] = account
+    return list(unique_accounts.values())
+
+def process_criteria(criteria):
+    """
+    Processes include or exclude criteria and returns account details.
+
+    :param criteria: Dictionary containing 'Accounts', 'OUs', and 'Tags'.
+    :return: List of account details based on the criteria.
+    """
+    account_details = []
+
+    accounts = criteria.get('Accounts', [])
+    for account in accounts:
+        details = call_api(f"account_id/{account}")
+        if details:
+            account_details.extend(details)
+
+    ous = criteria.get('OUs', [])
+    if ous:
+        ou_accounts = call_api(f"ou/{','.join(ous)}")
+        if ou_accounts:
+            account_details.extend(ou_accounts)
+
+    tags = criteria.get('Tags', {})
+    if tags:
+        tag_query = ','.join([f"{k}:{v}" for k, v in tags.items()])
+        tag_accounts = call_api(f"tags/{tag_query}")
+        if tag_accounts:
+            account_details.extend(tag_accounts)
+
+    return account_details
