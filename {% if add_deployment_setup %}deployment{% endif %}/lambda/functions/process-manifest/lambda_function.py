@@ -39,6 +39,13 @@ def lambda_handler(event, context):
 
     # Loop through each account in final_accounts and create a file in S3
     for account in final_accounts:
+        # Extract existing tags and add the new tag
+        existing_tags_dict = operation_details.get('Tags', {})
+        existing_tags_dict["DeployedBy"] = "CloudCanvas"  # Add the new tag
+
+        # Transform tags into the desired list format
+        transformed_tags = [{"Key": k, "Value": v} for k, v in existing_tags_dict.items()]
+
         file_content = json.dumps({
             "Action": operation_type,
             "StackPrefix": stack_prefix,
@@ -46,7 +53,7 @@ def lambda_handler(event, context):
             "AccountId": account['id'],
             "RoleArnToAssume": f"arn:aws:iam::{account['id']}:role/{role_to_assume}",
             "Parameters": operation_details.get('Parameters', {}),
-            "Tags": operation_details.get('Tags', {}),
+            "Tags": transformed_tags
         })
         s3_key = f"{S3_BUCKET_PREFIX}/{execution_id}/{account['id']}.json"
         print(s3_key)
