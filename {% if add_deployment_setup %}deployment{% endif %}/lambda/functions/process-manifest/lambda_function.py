@@ -33,12 +33,13 @@ def lambda_handler(event, context):
     included_accounts = deduplicate_accounts(included_accounts)
     excluded_account_ids = {acc['id'] for acc in excluded_accounts}
     final_accounts = [acc for acc in included_accounts if acc['id'] not in excluded_account_ids]
+    final_active_accounts = filter_active_accounts(final_accounts)
 
     # Initialize the S3 client
     s3_client = boto3.client('s3')
 
-    # Loop through each account in final_accounts and create a file in S3
-    for account in final_accounts:
+    # Loop through each account in final_active_accounts and create a file in S3
+    for account in final_active_accounts:
         # Extract existing tags and add the new tag
         existing_tags_dict = operation_details.get('Tags', {})
         existing_tags_dict["DeployedBy"] = "CloudCanvas"  # Add the new tag
@@ -156,3 +157,15 @@ def process_criteria(criteria):
             account_details.extend(tag_accounts)
 
     return account_details
+
+def filter_active_accounts(data):
+    """
+    Filters out accounts that are not ACTIVE from the provided data.
+
+    Parameters:
+    data (list): A list of dictionaries, each representing an account.
+
+    Returns:
+    list: A list of dictionaries with accounts that have 'status' set to 'ACTIVE'.
+    """
+    return [account for account in data if account['status'] == 'ACTIVE']
