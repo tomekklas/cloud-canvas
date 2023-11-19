@@ -6,6 +6,9 @@ _exclude:
   - notes.txt
   - .git*
   - copier.yaml
+  - sandbox
+  - demo-data.txt
+  - scripts
 
 _jinja_extensions:
     - jinja2_slug.SlugExtension
@@ -107,7 +110,7 @@ deployment_default_role_to_assume:
   type: str
   when: "{{ add_deployment_setup == True }}"
   help: Role to assume when deploing to other accounts
-  default: "CrossAccountAdminRole"
+  default: "CloudCanvasGenericCrossAccountAdminRole"
   validator: >-
     {% if not (deployment_default_role_to_assume) %}
     The name must be specified.
@@ -204,7 +207,7 @@ _tasks:
     {% endif %}
   - chmod +x codebuild_build.sh 
   - chmod +x local_build.sh
-  - chmod +x scripts/post_generate.py
+  # - chmod +x scripts/post_generate.py
   - >-
     # Pretty format all cloudformation yaml templates using aws rain
   # - /usr/bin/python3 scripts/post_generate.py

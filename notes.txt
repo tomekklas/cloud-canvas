@@ -7,7 +7,7 @@ pip3 install jinja2-time
 pip3 install jinja2-slug
 pip3 install cfn-lint
 
-rm -rf xxx/ && copier copy cloud-canvas xxx --trust
+copier copy cloud-canvas xxx --trust
 
 
 # splitting lambda names
