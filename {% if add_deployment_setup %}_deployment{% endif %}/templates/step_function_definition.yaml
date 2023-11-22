@@ -1,0 +1,230 @@
+StartAt: ExtractContextDetails
+States:
+  ExtractContextDetails:
+    Type: Pass
+    Parameters:
+      arn.$: $$.Execution.Id
+    ResultPath: $.contextDetails
+    Comment: Extract the execution ARN and store in contextDetails.
+    Next: Validate input
+
+  Validate input:
+    Type: Task
+    Resource: arn:aws:states:::lambda:invoke
+    Parameters:
+      Payload.$: $
+      FunctionName: ${ValidateInputLambda}
+    OutputPath: $.Payload
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+          - Lambda.SdkClientException
+          - Lambda.TooManyRequestsException
+        IntervalSeconds: 2
+        MaxAttempts: 6
+        BackoffRate: 2
+    Catch:
+      - ErrorEquals:
+          - States.ALL
+        Next: ValidationError
+    Comment: Invoke Lambda to validate input. Retry on specific Lambda errors. Catch validation errors.
+    Next: Process the payload
+
+  ValidationError:
+    Type: Fail
+    Error: ManifestValidationError
+    Cause: The Lambda function returned a ManifestValidationError.
+    Comment: Fail state for manifest validation errors.
+  Process the payload:
+    Type: Task
+    Resource: arn:aws:states:::lambda:invoke
+    OutputPath: $.Payload
+    Parameters:
+      Payload.$: $
+      FunctionName: ${ProcessManifestLambda}
+    Retry:
+      - ErrorEquals:
+          - Lambda.ServiceException
+          - Lambda.AWSLambdaException
+          - Lambda.SdkClientException
+          - Lambda.TooManyRequestsException
+        IntervalSeconds: 2
+        MaxAttempts: 6
+        BackoffRate: 2
+    Comment: this is a test comment
+    Next: Map the process
+  Map the process:
+    Type: Map
+    ToleratedFailurePercentage: 10
+    ItemsPath: $
+    End: true
+    Comment: Distributed map processing. Iterates over each item, processing it
+      based on defined steps.
+    ItemReader:
+      Resource: arn:aws:states:::s3:listObjectsV2
+      Parameters:
+        Bucket.$: $.body.Bucket
+        Prefix.$: $.body.Prefix
+    ItemProcessor:
+      ProcessorConfig:
+        Mode: DISTRIBUTED
+        ExecutionType: STANDARD
+      StartAt: Get config from S3
+      States:
+        Get config from S3:
+          Type: Task
+          Resource: arn:aws:states:::aws-sdk:s3:getObject
+          Next: Check existing setup
+          Comment: Retrieve configuration from S3 based on the provided key.
+          Parameters:
+            Bucket: deployment-idea-test-bucket
+            Key.$: $.Key
+          ResultSelector:
+            Parameters.$: States.StringToJson($.Body)
+        Check existing setup:
+          Type: Task
+          Resource: arn:aws:states:::lambda:invoke
+          OutputPath: $.Payload
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
+          Parameters:
+            Payload.$: $
+            FunctionName: CloudCanvasCheckExistingSetup
+          Retry:
+            - ErrorEquals:
+                - Lambda.ServiceException
+                - Lambda.AWSLambdaException
+                - Lambda.SdkClientException
+                - Lambda.TooManyRequestsException
+              IntervalSeconds: 1
+              MaxAttempts: 3
+              BackoffRate: 2
+          Next: What action is required?
+        What action is required?:
+          Type: Choice
+          Choices:
+            - Variable: $.Parameters.Action
+              StringEquals: Create
+              Next: Create the stack
+            - Variable: $.Parameters.Action
+              StringEquals: Delete
+              Next: Delete the stack
+            - Variable: $.Parameters.Action
+              StringEquals: Update
+              Next: Update the stack
+          Default: Succeed
+
+        Create the stack:
+          Type: Task
+          Next: Wait for action
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
+          Parameters:
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+            TemplateURL.$: States.Format('{}', $.Parameters.TemplateUrl)
+            Capabilities:
+              - CAPABILITY_AUTO_EXPAND
+              - CAPABILITY_IAM
+            Tags.$: $.Parameters.Tags
+            Parameters:
+              - ParameterKey: Environment
+                ParameterValue: "Dev"
+          Resource: arn:aws:states:::aws-sdk:cloudformation:createStack
+          ResultPath: null
+
+        Update the stack:
+          Type: Task
+          Parameters:
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+            TemplateURL.$: States.Format('{}', $.Parameters.TemplateUrl)
+            Capabilities:
+              - CAPABILITY_AUTO_EXPAND
+              - CAPABILITY_IAM
+            Parameters.$: $.Parameters.Parameters
+            Tags.$: $.Parameters.Tags
+          Resource: arn:aws:states:::aws-sdk:cloudformation:updateStack
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
+          Next: Wait for action
+          ResultPath: null
+
+        Delete the stack:
+          Type: Task
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
+          Parameters:
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+          Resource: arn:aws:states:::aws-sdk:cloudformation:deleteStack
+          Next: Wait for action
+          ResultPath: null
+
+        Wait for action:
+          Type: Wait
+          Seconds: 10
+          Next: Check action status
+
+        Check action status:
+          Type: Task
+          Next: Decide based on status
+          Credentials:
+            RoleArn.$: $.Parameters.RoleArnToAssume
+          Parameters:
+            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+          Resource: arn:aws:states:::aws-sdk:cloudformation:describeStacks
+          ResultSelector:
+            Status.$: $.Stacks[0].StackStatus
+          ResultPath: $.StackStatus
+          Catch:
+            - ErrorEquals:
+                - States.TaskFailed
+              ResultPath: $
+              Next: Succeed
+
+        Decide based on status:
+          Type: Choice
+          Choices:
+            - Or:
+                - Variable: $.StackStatus.Status
+                  StringEquals: CREATE_IN_PROGRESS
+                - Variable: $.StackStatus.Status
+                  StringEquals: UPDATE_IN_PROGRESS
+                - Variable: $.StackStatus.Status
+                  StringEquals: DELETE_IN_PROGRESS
+                - Variable: $.StackStatus.Status
+                  StringEquals: ROLLBACK_IN_PROGRESS
+                - Variable: $.StackStatus.Status
+                  StringEquals: UPDATE_ROLLBACK_IN_PROGRESS
+              Next: Wait for action
+            - Or:
+                - Variable: $.StackStatus.Status
+                  StringEquals: CREATE_COMPLETE
+                - Variable: $.StackStatus.Status
+                  StringEquals: UPDATE_COMPLETE
+                - Variable: $.StackStatus.Status
+                  StringEquals: DELETE_COMPLETE
+                - Variable: $.StackStatus.Status
+                  StringEquals: ROLLBACK_COMPLETE
+                - Variable: $.StackStatus.Status
+                  StringEquals: UPDATE_ROLLBACK_COMPLETE
+              Next: Succeed
+            - Or:
+                - Variable: $.StackStatus.Status
+                  StringEquals: CREATE_FAILED
+                - Variable: $.StackStatus.Status
+                  StringEquals: DELETE_FAILED
+                - Variable: $.StackStatus.Status
+                  StringEquals: ROLLBACK_FAILED
+                - Variable: $.StackStatus.Status
+                  StringEquals: UPDATE_FAILED
+                - Variable: $.StackStatus.Status
+                  StringEquals: UPDATE_ROLLBACK_FAILED
+              Next: Failed
+          Default: Succeed
+
+        Succeed:
+          Type: Pass
+          End: true
+
+        Failed:
+          Type: Fail
