@@ -3,6 +3,63 @@ import json
 import boto3
 import requests
 
+# Mock
+# Set default values for environment variables for local testing
+os.environ['ApiKey'] = '7f8g5LXLiJ2QR7biKg42PaHoGsbJxiqDQLNQF9Ri'
+os.environ['ApiDomain'] = 'https://z8btaajavk.execute-api.eu-central-1.amazonaws.com'
+os.environ['ApiVersion'] = 'v1'
+os.environ['ConfigS3Bucket'] = 'deployment-idea-test-bucket'
+os.environ['ConfigS3Prefix'] = 'config/xxx'
+os.environ['DefaultRoleArnToAssume'] = 'RoileName'
+
+# Mock event
+mock_event = {
+  "StackPrefix": "testing",
+  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/module-4/templates/stack.yaml",
+  "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+  "Create": {
+    "Include": {
+      "Accounts": [
+        "821373506894",
+        "660034872039",
+        "548584997268"
+      ],
+      "OUs": [
+        "ou-cevp-dlhavf71",
+        "ou-cevp-gs8zwffm"
+      ],
+      "Tags": {
+        "Test": "Yes",
+        "Owner": "Alan"
+      }
+    },
+    "Exclude": {
+      "Accounts": [
+        "671717135011"
+      ],
+      "OUs": [
+        "ou-cevp-kqbf99wq"
+      ],
+      "Tags": {
+        "Type": "Infra"
+      }
+    },
+    "Parameters": {
+      "Environment": "Dev"
+    },
+    "Tags": {
+      "Key": "Value"
+    }
+  }
+  ,
+  "contextDetails": {
+    "arn": "arn:aws:states:eu-central-1:821373506894:execution:deployment:b8193b6e-da6c-48b1-b52e-fbe83ecf7e78"
+  }
+}
+
+# empty mock context
+mock_context = {}
+
 # Environment variables
 API_KEY = os.environ['ApiKey']
 API_DOMAIN = os.environ['ApiDomain']
@@ -33,34 +90,20 @@ def lambda_handler(event, context):
     included_accounts = deduplicate_accounts(included_accounts)
     excluded_account_ids = {acc['id'] for acc in excluded_accounts}
     final_accounts = [acc for acc in included_accounts if acc['id'] not in excluded_account_ids]
-    final_active_accounts = filter_active_accounts(final_accounts)
 
     # Initialize the S3 client
     s3_client = boto3.client('s3')
 
-    # Loop through each account in final_active_accounts and create a file in S3
-    for account in final_active_accounts:
-        # Extract existing tags and add the new tag
-        existing_tags_dict = operation_details.get('Tags', {})
-        existing_tags_dict["DeployedBy"] = "CloudCanvas"  # Add the new tag
-
-        # Transform tags into the desired list format
-        transformed_tags = [{"Key": k, "Value": v} for k, v in existing_tags_dict.items()]
-
-        # Extract parameters
-        existing_parameters_dict = operation_details.get('Parameters', {})
-
-        # Transform parameters into the desired list format
-        transformed_parameters = [{"ParameterKey": k, "ParameterValue": v} for k, v in existing_parameters_dict.items()]
-
+    # Loop through each account in final_accounts and create a file in S3
+    for account in final_accounts:
         file_content = json.dumps({
             "Action": operation_type,
             "StackPrefix": stack_prefix,
             "TemplateUrl": template_url,
             "AccountId": account['id'],
             "RoleArnToAssume": f"arn:aws:iam::{account['id']}:role/{role_to_assume}",
-            "Parameters": transformed_parameters,
-            "Tags": transformed_tags
+            "Parameters": operation_details.get('Parameters', {}),
+            "Tags": operation_details.get('Tags', {}),
         })
         s3_key = f"{S3_BUCKET_PREFIX}/{execution_id}/{account['id']}.json"
         print(s3_key)
@@ -164,14 +207,7 @@ def process_criteria(criteria):
 
     return account_details
 
-def filter_active_accounts(data):
-    """
-    Filters out accounts that are not ACTIVE from the provided data.
-
-    Parameters:
-    data (list): A list of dictionaries, each representing an account.
-
-    Returns:
-    list: A list of dictionaries with accounts that have 'status' set to 'ACTIVE'.
-    """
-    return [account for account in data if account['status'] == 'ACTIVE']
+# Run the Lambda function with the mock event
+if __name__ == "__main__":
+    response = lambda_handler(mock_event, mock_context)
+    print(response)

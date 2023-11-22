@@ -1,0 +1,93 @@
+Template: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/deployment/templates/stack.yaml
+
+Params:
+
+https://z8btaajavk.execute-api.eu-central-1.amazonaws.com
+7f8g5LXLiJ2QR7biKg42PaHoGsbJxiqDQLNQF9Ri
+v1
+Dev
+
+
+{
+  "StackPrefix": "testing-1",
+  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
+  "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+  "Create": {
+    "Include": {
+      "Accounts": [
+        "821373506894"
+      ]
+    },
+    "Parameters": {
+      "Environment": "Dev"
+    },
+    "Tags": {
+      "Key": "Value"
+    }
+  }
+}
+
+# Remove it:
+{
+    "StackPrefix": "testing-1",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
+    "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+    "Delete": {
+      "Include": {
+        "Accounts": [
+          "821373506894"
+        ]
+      }
+    }
+  }
+
+# Deploiy to all org
+{
+    "StackPrefix": "testing-1",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
+    "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+    "Create": {
+      "Include": {
+        "OUs": [
+            "r-cevp"
+          ]
+      },
+      "Exclude": {
+        "Accounts": [
+            "680007622252",
+            "978905388603",
+            "487185935295"
+          ]  
+      },
+      "Parameters": {
+        "Environment": "Dev"
+      },
+      "Tags": {
+        "Name": "Tomek"
+      }
+    }
+  }
+
+  # run this same again
+
+  # remove all of the stacks except for main account
+
+  {
+    "StackPrefix": "testing-1",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
+    "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+    "Delete": {
+      "Include": {
+        "OUs": [
+            "r-cevp"
+          ]
+      },
+      "Exclude": {
+        "Accounts": [
+            "680007622252",
+            "978905388603",
+            "487185935295"
+          ]  
+      }
+    }
+  }

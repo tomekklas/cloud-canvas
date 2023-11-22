@@ -272,6 +272,7 @@ Resources:
         BuildId: <<<BUILD_ID>>>
         StackPrefix: {{ deployment_stack_name_prefix }}
         ValidateInputLambda: !GetAtt ValidateInputLambda.Arn
+        CheckExistingSetupLambda: CloudCanvasCheckExistingSetup
         ProcessManifestLambda: !GetAtt ProcessManifestLambda.Arn
 
   # Step Function related
