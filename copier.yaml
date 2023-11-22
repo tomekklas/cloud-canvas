@@ -194,7 +194,7 @@ _message_after_copy: |
 
        $ cd {{ _copier_conf.dst_path }}
 
-    2. Read "CONTRIBUING.md" and start coding.
+    2. Read "CONTRIBUTING.md" and start coding.
 
 _tasks:
   - >-

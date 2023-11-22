@@ -127,9 +127,7 @@ States:
               - CAPABILITY_AUTO_EXPAND
               - CAPABILITY_IAM
             Tags.$: $.Parameters.Tags
-            Parameters:
-              - ParameterKey: Environment
-                ParameterValue: "Dev"
+            Parameters.$: $.Parameters.Parameters
           Resource: arn:aws:states:::aws-sdk:cloudformation:createStack
           ResultPath: null
 
