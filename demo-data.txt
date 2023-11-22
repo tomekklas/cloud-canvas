@@ -57,7 +57,10 @@ Dev
             "680007622252",
             "978905388603",
             "487185935295"
-          ]  
+          ],
+          "OUs": [
+            "ou-cevp-nysbgop4"
+          ]
       },
       "Parameters": {
         "Environment": "Dev"
@@ -68,26 +71,25 @@ Dev
     }
   }
 
+
   # run this same again
 
   # remove all of the stacks except for main account
 
-  {
-    "StackPrefix": "demo-for-dragan",
-    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
-    "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
-    "Delete": {
-      "Include": {
-        "OUs": [
-            "r-cevp"
-          ]
-      },
-      "Exclude": {
-        "Accounts": [
-            "680007622252",
-            "978905388603",
-            "487185935295"
-          ]  
-      }
+{
+  "StackPrefix": "demo-for-dragan",
+  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
+  "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+  "Delete": {
+    "Include": {
+      "OUs": [
+          "r-cevp"
+        ]
+    },
+    "Exclude": {
+      "Accounts": [
+          "821373506894"
+        ]  
     }
   }
+}
