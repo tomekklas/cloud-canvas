@@ -134,9 +134,22 @@ Resources:
   {{ cleaned_lambda_name }}LambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /aws/lambda/{{cleaned_lambda_name}}Lambda
       RetentionInDays: !Ref LogRetentionInDays
+      LogGroupName: 
+        !Join 
+          - '' 
+          - - '/aws/lambda/' 
+            - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
+            - '/'
+            - '{{ cleaned_lambda_name }}'
+
   # {{ cleaned_lambda_name }} Lambda related
   ############################################
 {% endfor %}
 {%- endif -%}
+
+
+Outputs:
+  InstallationId:
+    Description: ID of this particular installation.
+    Value: !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]

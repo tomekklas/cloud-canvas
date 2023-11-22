@@ -14,20 +14,22 @@ def lambda_handler(event, context):
         # Validate the event data
         validate(instance=event, schema=schema)
 
-        # If validation is successful, return the event
+        # If validation is successful, return a success message
+        # straight event is easier to understand in Step Function UI
         return event
 
     except ValidationError as ve:
-        # Raise an exception for validation errors
-        raise Exception("ValidationException", ve.message)
-
+        # If validation fails, return the error message
+        return {
+            "statusCode": 400,
+            "body": json.dumps(f"Validation error: {ve.message}")
+        }
     except FileNotFoundError:
-        # Raise an exception if the file is not found
-        raise Exception("FileNotFoundException", "Required file not found.")
-
-    except Exception as e:
-        # General exception handling
-        raise Exception("GeneralException", str(e))
+        # If the file is not found, return an error message
+        return {
+            "statusCode": 500,
+            "body": json.dumps("Required file not found.")
+        }
 
 # Run the Lambda function with a test event from a file
 if __name__ == "__main__":

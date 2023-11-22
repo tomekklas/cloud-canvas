@@ -1,4 +1,4 @@
-{% set module_name_path_safe = "deployment" -%}
+{% set module_name_path_safe = "_deployment" -%}
 ---
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::LanguageExtensions
@@ -265,7 +265,7 @@ Resources:
         Enabled: true
       DefinitionS3Location:
         Bucket: <<<ARTIFACT_BUCKET>>>
-        Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/deployment/templates/step_function_definition.yaml
+        Key: {{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}/<<<BUILD_ID>>>/{{ module_name_path_safe }}/templates/step_function_definition.yaml
       DefinitionSubstitutions:
         BucketName: <<<ARTIFACT_BUCKET>>>
         Version: {{ PRODUCT_VERSION }}

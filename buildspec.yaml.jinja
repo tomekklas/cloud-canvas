@@ -147,7 +147,7 @@ phases:
       - echo "Post-build cleanup and finalization..."
       - echo "CodeBuild process completed successfully!"
 
-artifacts:
-  discard-paths: no
-  base-directory: ${CODEBUILD_SRC_DIR}
-  files: ${SOURCE_PATH}/**
+# artifacts:
+#   discard-paths: no
+#   base-directory: ${CODEBUILD_SRC_DIR}
+#   files: ${SOURCE_PATH}/**

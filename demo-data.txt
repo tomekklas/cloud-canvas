@@ -9,7 +9,7 @@ Dev
 
 
 {
-  "StackPrefix": "testing-1",
+  "StackPrefix": "demo-for-dragan",
   "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
   "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
   "Create": {
@@ -29,7 +29,7 @@ Dev
 
 # Remove it:
 {
-    "StackPrefix": "testing-1",
+    "StackPrefix": "demo-for-dragan",
     "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
     "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
     "Delete": {
@@ -43,7 +43,7 @@ Dev
 
 # Deploiy to all org
 {
-    "StackPrefix": "testing-1",
+    "StackPrefix": "demo-for-dragan",
     "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
     "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
     "Create": {
@@ -73,7 +73,7 @@ Dev
   # remove all of the stacks except for main account
 
   {
-    "StackPrefix": "testing-1",
+    "StackPrefix": "demo-for-dragan",
     "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
     "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
     "Delete": {
