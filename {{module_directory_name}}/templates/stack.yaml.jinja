@@ -55,9 +55,9 @@ Conditions:
 Mappings:
   Environment:
     Dev:
-      StateMachineLogLevel: ALL
+      StateMachineLogLevel: DEBUG
     Prod:
-      StateMachineLogLevel: ERROR
+      StateMachineLogLevel: FATAL
 
 Resources:
 {%- if include_common_lambda_layer %}
@@ -121,6 +121,17 @@ Resources:
       MemorySize: 1024
       Architectures:
         - arm64
+      LoggingConfig:
+        #ApplicationLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
+        LogFormat: JSON
+        LogGroup: 
+          !Join 
+            - '/' 
+            - - '/aws/lambda/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}' 
+              - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
+              - "{{ module_name_path_safe }}"
+              - '{{ cleaned_lambda_name }}'
+        #SystemLogLevel: String
       Role: !GetAtt {{ cleaned_lambda_name }}LambdaExecutionRole.Arn
       {%- if include_common_lambda_layer %}
       Layers:
@@ -128,9 +139,6 @@ Resources:
       {%- endif %}
       Runtime: python3.11
       Timeout: 90
-      Environment:
-        Variables:
-          LOG_LEVEL: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
         S3Key: <<<{{ module_name_path_safe }}_lambda_functions_{{ lambda_name_path_safe }}>>>
@@ -139,7 +147,12 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       RetentionInDays: !Ref LogRetentionInDays
-      LogGroupName: /aws/lambda/{{ cleaned_lambda_name }}
+      LogGroupName: !Join
+                      - '/' 
+                      - - '/aws/lambda/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}' 
+                        - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
+                        - "{{ module_name_path_safe }}"
+                        - '{{ cleaned_lambda_name }}'
 
   # {{ cleaned_lambda_name }} Lambda related
   ############################################

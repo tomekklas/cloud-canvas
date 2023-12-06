@@ -137,6 +137,17 @@ Resources:
       Architectures:
         - arm64
       Role: !GetAtt ValidateInputLambdaExecutionRole.Arn
+      LoggingConfig:
+        #ApplicationLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
+        LogFormat: JSON
+        LogGroup: 
+          !Join 
+            - '/' 
+            - - '/aws/lambda/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}' 
+              - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
+              - "{{ module_name_path_safe }}"
+              - 'ValidateInput'
+        #SystemLogLevel: String
       Layers:
         - !Ref UtilitiesLambdaLayer
       Runtime: python3.11
@@ -196,6 +207,17 @@ Resources:
       Architectures:
         - arm64
       Role: !GetAtt ProcessManifestLambdaExecutionRole.Arn
+      LoggingConfig:
+        #ApplicationLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
+        LogFormat: JSON
+        LogGroup: 
+          !Join 
+            - '/' 
+            - - '/aws/lambda/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}' 
+              - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
+              - "{{ module_name_path_safe }}"
+              - 'ProcessManifest'
+        #SystemLogLevel: String
       Environment:
         Variables: 
           ConfigS3Bucket: <<<ARTIFACT_BUCKET>>>
