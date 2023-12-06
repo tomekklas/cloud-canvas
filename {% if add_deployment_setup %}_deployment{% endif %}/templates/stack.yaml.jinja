@@ -70,9 +70,9 @@ Conditions:
 Mappings:
   Environment:
     Dev:
-      StateMachineLogLevel: ALL
+      StateMachineLogLevel: DEBUG
     Prod:
-      StateMachineLogLevel: ERROR
+      StateMachineLogLevel: INFO
 
 Resources:
 
@@ -138,7 +138,7 @@ Resources:
         - arm64
       Role: !GetAtt ValidateInputLambdaExecutionRole.Arn
       LoggingConfig:
-        #ApplicationLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
+        ApplicationLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
         LogFormat: JSON
         LogGroup: 
           !Join 
@@ -147,14 +147,11 @@ Resources:
               - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
               - "{{ module_name_path_safe }}"
               - 'ValidateInput'
-        #SystemLogLevel: String
+        SystemLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
       Layers:
         - !Ref UtilitiesLambdaLayer
       Runtime: python3.11
       Timeout: 90
-      Environment:
-        Variables:
-          LOG_LEVEL: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
         S3Key: <<<{{- module_name_path_safe -}}_lambda_functions_validate-input>>>
@@ -208,7 +205,7 @@ Resources:
         - arm64
       Role: !GetAtt ProcessManifestLambdaExecutionRole.Arn
       LoggingConfig:
-        #ApplicationLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
+        ApplicationLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
         LogFormat: JSON
         LogGroup: 
           !Join 
@@ -217,7 +214,7 @@ Resources:
               - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
               - "{{ module_name_path_safe }}"
               - 'ProcessManifest'
-        #SystemLogLevel: String
+        SystemLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
       Environment:
         Variables: 
           ConfigS3Bucket: <<<ARTIFACT_BUCKET>>>
