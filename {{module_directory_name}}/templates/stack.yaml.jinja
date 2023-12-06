@@ -68,7 +68,8 @@ Resources:
     Type: AWS::Lambda::LayerVersion
     Properties:
       Description: {{ module_name }} - Common Lambda Layer
-      # Architecture: ARM64
+      CompatibleArchitectures:
+        - arm64
       CompatibleRuntimes: 
         - python3.11
       Content: 
@@ -118,7 +119,8 @@ Resources:
       Description: {{ cleaned_lambda_name }} Lambda
       Handler: lambda_function.lambda_handler
       MemorySize: 1024
-      # Architecture: ARM64
+      Architectures:
+        - arm64
       Role: !GetAtt {{ cleaned_lambda_name }}LambdaExecutionRole.Arn
       {%- if include_common_lambda_layer %}
       Layers:

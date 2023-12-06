@@ -121,7 +121,7 @@ States:
           Credentials:
             RoleArn.$: $.Parameters.RoleArnToAssume
           Parameters:
-            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+            StackName.$: States.Format('{}', $.Parameters.StackName)
             TemplateURL.$: States.Format('{}', $.Parameters.TemplateUrl)
             Capabilities:
               - CAPABILITY_AUTO_EXPAND
@@ -134,7 +134,7 @@ States:
         Update the stack:
           Type: Task
           Parameters:
-            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+            StackName.$: States.Format('{}', $.Parameters.StackName)
             TemplateURL.$: States.Format('{}', $.Parameters.TemplateUrl)
             Capabilities:
               - CAPABILITY_AUTO_EXPAND
@@ -152,7 +152,7 @@ States:
           Credentials:
             RoleArn.$: $.Parameters.RoleArnToAssume
           Parameters:
-            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+            StackName.$: States.Format('{}', $.Parameters.StackName)
           Resource: arn:aws:states:::aws-sdk:cloudformation:deleteStack
           Next: Wait for action
           ResultPath: null
@@ -168,7 +168,7 @@ States:
           Credentials:
             RoleArn.$: $.Parameters.RoleArnToAssume
           Parameters:
-            StackName.$: States.Format('{}', $.Parameters.StackPrefix)
+            StackName.$: States.Format('{}', $.Parameters.StackName)
           Resource: arn:aws:states:::aws-sdk:cloudformation:describeStacks
           ResultSelector:
             Status.$: $.Stacks[0].StackStatus

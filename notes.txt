@@ -1,23 +1,108 @@
-https://copier.readthedocs.io/en/stable/#quick-start
+Template: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/deployment/templates/stack.yaml
+
+Params:
+
+https://z8btaajavk.execute-api.eu-central-1.amazonaws.com
+7f8g5LXLiJ2QR7biKg42PaHoGsbJxiqDQLNQF9Ri
+v1
+Dev
 
 
-those filters are available by default: https://gitlab.com/dreamer-labs/libraries/jinja2-ansible-filters/
+{
+  "StackName": "demo-for-simon",
+  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
+  "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+  "Create": {
+    "Include": {
+      "Accounts": [
+        "821373506894"
+      ]
+    },
+    "Parameters": {
+      "Environment": "Dev"
+    },
+    "Tags": {
+      "Key": "Value",
+      "Name": "Dragan"
+    }
+  }
+}
 
-pip3 install jinja2-time 
-pip3 install jinja2-slug
-pip3 install cfn-lint
+# Remove it:
+{
+    "StackName": "demo-for-simon",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
+    "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+    "Delete": {
+      "Include": {
+        "Accounts": [
+          "821373506894"
+        ]
+      }
+    }
+  }
 
-copier copy cloud-canvas xxx --trust
+# Deploiy to all org
+{
+    "StackName": "demo-for-simon",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
+    "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+    "Create": {
+      "Include": {
+        "OUs": [
+            "r-cevp"
+          ]
+      },
+      "Exclude": {
+        "Accounts": [
+            "680007622252",
+            "978905388603",
+            "487185935295"
+          ],
+          "OUs": [
+            "ou-cevp-nysbgop4"
+          ]
+      },
+      "Parameters": {
+        "Environment": "Dev"
+      },
+      "Tags": {
+        "Name": "Tomek"
+      }
+    }
+  }
 
 
-# splitting lambda names
-{% set lambda_list = lambda_names.split(",") %}
-{% for lambda_name in lambda_list %}
-   {{ lambda_name.strip() }}
-{% endfor %}
+  # run this same again
+
+  # remove all of the stacks except for main account
+
+{
+  "StackName": "demo-for-simon",
+  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
+  "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+  "Delete": {
+    "Include": {
+      "OUs": [
+          "r-cevp"
+        ]
+    },
+    "Exclude": {
+      "Accounts": [
+          "821373506894"
+        ]  
+    }
+  }
+}
+
+Notes from Dragan:
+- how to run comprehensive run
+- master manifest
+- dependencies
+- global variables (TBD)
+- Parameter sharing (to think through)
+- Service Catalog Products (to think through)
+- control dashboard
 
 
-codebuild_build.sh -a /tmp -i public.ecr.aws/codebuild/amazonlinux2-x86_64-standard:5.0
-
-
-https://github.com/tomekklas/deployment_idea/blob/main/%7B%7Bcookiecutter.repository_name%7D%7D/v1/deployment/templates/step_function_definition.yaml#L66
+!Join ['-', ['id', !Join [ '-', [ !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref AWS::StackId ] ] ] ] ] ] ] ]

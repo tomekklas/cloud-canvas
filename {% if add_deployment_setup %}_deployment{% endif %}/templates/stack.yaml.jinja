@@ -82,6 +82,8 @@ Resources:
     Type: AWS::Lambda::LayerVersion
     Properties:
       Description: {{ module_name }} - Utilities Lambda Layer
+      CompatibleArchitectures:
+        - arm64
       CompatibleRuntimes: 
         - python3.11
       Content: 
@@ -132,6 +134,8 @@ Resources:
       Description: ValidateInput Lambda
       Handler: lambda_function.lambda_handler
       MemorySize: 1024
+      Architectures:
+        - arm64
       Role: !GetAtt ValidateInputLambdaExecutionRole.Arn
       Layers:
         - !Ref UtilitiesLambdaLayer
@@ -189,6 +193,8 @@ Resources:
       Description: ProcessManifest Lambda
       Handler: lambda_function.lambda_handler
       MemorySize: 1024
+      Architectures:
+        - arm64
       Role: !GetAtt ProcessManifestLambdaExecutionRole.Arn
       Environment:
         Variables: 
@@ -270,7 +276,7 @@ Resources:
         BucketName: <<<ARTIFACT_BUCKET>>>
         Version: {{ PRODUCT_VERSION }}
         BuildId: <<<BUILD_ID>>>
-        StackPrefix: {{ deployment_stack_name_prefix }}
+        StackName: {{ deployment_stack_name_prefix }}
         ValidateInputLambda: !GetAtt ValidateInputLambda.Arn
         CheckExistingSetupLambda: CloudCanvasCheckExistingSetup
         ProcessManifestLambda: !GetAtt ProcessManifestLambda.Arn

@@ -14,7 +14,7 @@ os.environ['DefaultRoleArnToAssume'] = 'RoileName'
 
 # Mock event
 mock_event = {
-  "StackPrefix": "testing",
+  "StackName": "testing",
   "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/module-4/templates/stack.yaml",
   "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
   "Create": {
@@ -70,7 +70,7 @@ DEFAULT_ROLE_NAME_TO_ASSUME = os.environ.get('DefaultRoleArnToAssume')
 
 def lambda_handler(event, context):
     # Extract values from the event
-    stack_prefix = event["StackPrefix"]
+    stack_prefix = event["StackName"]
     template_url = event["TemplateUrl"]
     role_to_assume = event.get("RoleToAssume", DEFAULT_ROLE_NAME_TO_ASSUME)
 
@@ -98,7 +98,7 @@ def lambda_handler(event, context):
     for account in final_accounts:
         file_content = json.dumps({
             "Action": operation_type,
-            "StackPrefix": stack_prefix,
+            "StackName": stack_prefix,
             "TemplateUrl": template_url,
             "AccountId": account['id'],
             "RoleArnToAssume": f"arn:aws:iam::{account['id']}:role/{role_to_assume}",

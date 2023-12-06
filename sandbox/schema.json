@@ -1,7 +1,7 @@
 {
     "type": "object",
     "properties": {
-        "StackPrefix": {"type": "string"},
+        "StackName": {"type": "string"},
         "TemplateUrl": {
             "type": "string",
             "format": "uri",
@@ -154,7 +154,7 @@
             "additionalProperties": false
         }
     },
-    "required": ["StackPrefix", "TemplateUrl", "RoleToAssume", "contextDetails"],
+    "required": ["StackName", "TemplateUrl", "RoleToAssume", "contextDetails"],
     "oneOf": [
         {"required": ["Create"]},
         {"required": ["Delete"]}

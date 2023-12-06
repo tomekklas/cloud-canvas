@@ -9,8 +9,8 @@ Dev
 
 
 {
-  "StackPrefix": "demo-for-dragan",
-  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
+  "StackName": "demo-for-simon",
+  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
   "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
   "Create": {
     "Include": {
@@ -22,15 +22,16 @@ Dev
       "Environment": "Dev"
     },
     "Tags": {
-      "Key": "Value"
+      "Key": "Value",
+      "Name": "Dragan"
     }
   }
 }
 
 # Remove it:
 {
-    "StackPrefix": "demo-for-dragan",
-    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
+    "StackName": "demo-for-simon",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
     "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
     "Delete": {
       "Include": {
@@ -43,8 +44,8 @@ Dev
 
 # Deploiy to all org
 {
-    "StackPrefix": "demo-for-dragan",
-    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
+    "StackName": "demo-for-simon",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
     "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
     "Create": {
       "Include": {
@@ -77,8 +78,8 @@ Dev
   # remove all of the stacks except for main account
 
 {
-  "StackPrefix": "demo-for-dragan",
-  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-dragan/templates/stack.yaml",
+  "StackName": "demo-for-simon",
+  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
   "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
   "Delete": {
     "Include": {
@@ -93,3 +94,15 @@ Dev
     }
   }
 }
+
+Notes from Dragan:
+- how to run comprehensive run
+- master manifest
+- dependencies
+- global variables (TBD)
+- Parameter sharing (to think through)
+- Service Catalog Products (to think through)
+- control dashboard
+
+
+!Join ['-', ['id', !Join [ '-', [ !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref AWS::StackId ] ] ] ] ] ] ] ]
