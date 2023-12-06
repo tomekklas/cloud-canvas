@@ -24,18 +24,9 @@ States:
         IntervalSeconds: 2
         MaxAttempts: 6
         BackoffRate: 2
-    Catch:
-      - ErrorEquals:
-          - States.ALL
-        Next: ValidationError
     Comment: Invoke Lambda to validate input. Retry on specific Lambda errors. Catch validation errors.
     Next: Process the payload
 
-  ValidationError:
-    Type: Fail
-    Error: ManifestValidationError
-    Cause: The Lambda function returned a ManifestValidationError.
-    Comment: Fail state for manifest validation errors.
   Process the payload:
     Type: Task
     Resource: arn:aws:states:::lambda:invoke
