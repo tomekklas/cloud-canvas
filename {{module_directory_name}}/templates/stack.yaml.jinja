@@ -68,8 +68,9 @@ Resources:
     Type: AWS::Lambda::LayerVersion
     Properties:
       Description: {{ module_name }} - Common Lambda Layer
+      # Architecture: ARM64
       CompatibleRuntimes: 
-        - python3.9
+        - python3.11
       Content: 
         S3Bucket: <<<ARTIFACT_BUCKET>>>
         S3Key: <<<{{- module_name_path_safe -}}_lambda_layers_{{- shared_lambda_name_path_safe -}}>>>
@@ -117,6 +118,7 @@ Resources:
       Description: {{ cleaned_lambda_name }} Lambda
       Handler: lambda_function.lambda_handler
       MemorySize: 1024
+      # Architecture: ARM64
       Role: !GetAtt {{ cleaned_lambda_name }}LambdaExecutionRole.Arn
       {%- if include_common_lambda_layer %}
       Layers:
@@ -135,13 +137,7 @@ Resources:
     Type: AWS::Logs::LogGroup
     Properties:
       RetentionInDays: !Ref LogRetentionInDays
-      LogGroupName: 
-        !Join 
-          - '' 
-          - - '/aws/lambda/' 
-            - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
-            - '/'
-            - '{{ cleaned_lambda_name }}'
+      LogGroupName: /aws/lambda/{{ cleaned_lambda_name }}
 
   # {{ cleaned_lambda_name }} Lambda related
   ############################################
