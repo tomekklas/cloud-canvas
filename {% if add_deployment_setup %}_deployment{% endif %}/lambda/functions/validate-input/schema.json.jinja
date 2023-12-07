@@ -9,12 +9,15 @@
         },
         "RoleToAssume": {
             "type": "string",
-            "pattern": "^[a-zA-Z0-9+=,.@_-]{1,64}$",
-            "default": "{{ deployment_default_role_to_assume }}"
+            "pattern": "^[a-zA-Z0-9+=,.@_-]{1,64}$"
         },
         "Create": {
             "type": "object",
             "properties": {
+                "CleanseElsewhere": {
+                    "type": ["boolean", "string"],
+                    "enum": [true, "true", "True", false, "false", "False"]
+                },
                 "Include": {
                     "type": "object",
                     "properties": {

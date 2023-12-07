@@ -74,10 +74,6 @@ def lambda_handler(event, context):
             'Prefix': f"{S3_BUCKET_PREFIX}/{execution_id}/"
         }
     }
-    return {
-        "statusCode": 200,
-        "body": json.dumps("Process completed successfully.")
-    }
 
 def call_api(endpoint, params=None):
     """
