@@ -30,7 +30,7 @@ phases:
     commands:
       - echo "Setting up environment variables and determining build context..."
       - |-
-        if [ -n "$CODEBUILD_BUILD_ID" ]; then
+        if [[ ! -z $CODEBUILD_BUILD_ID && $CODEBUILD_BUILD_ID != local:00000000-0000-0000-0000-000000000000 ]]; then
             BUILD_ARN=$(aws codebuild batch-get-builds --ids "$CODEBUILD_BUILD_ID" --query 'builds[0].arn' --output text)
             if [ "$BUILD_ARN" != "None" ]; then
                 echo "Detected AWS CodeBuild environment."
