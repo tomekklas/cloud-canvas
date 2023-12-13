@@ -88,7 +88,9 @@ Resources:
                       # Only one stack matches, use that stack name
                       return process_stack_name(matching_stacks[0], action, cloudformation, event)
                   else:
-                      raise Exception(f"No stack matches the regex '{stack_name}'")
+                    # No stack matches the regex, return NoAction
+                    event["Parameters"]["Action"] = "NoAction"
+                    return event
 
           def process_stack_name(stack_name, action, cloudformation, event):
               # The existing functionality to process a specific stack name

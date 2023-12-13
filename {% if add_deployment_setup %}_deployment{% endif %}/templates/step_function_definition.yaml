@@ -184,6 +184,8 @@ States:
                   StringEquals: ROLLBACK_IN_PROGRESS
                 - Variable: $.StackStatus.Status
                   StringEquals: UPDATE_ROLLBACK_IN_PROGRESS
+                - Variable: $.StackStatus.Status
+                  StringEquals: UPDATE_COMPLETE_CLEANUP_IN_PROGRESS
               Next: Wait for action
             - Or:
                 - Variable: $.StackStatus.Status

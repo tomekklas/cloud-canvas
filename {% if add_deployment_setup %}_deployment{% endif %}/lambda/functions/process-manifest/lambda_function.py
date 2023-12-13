@@ -14,8 +14,11 @@ DEFAULT_ROLE_NAME_TO_ASSUME = os.environ.get('DefaultRoleArnToAssume')
 def lambda_handler(event, context):
     # Extract values from the event
     stack_prefix = event["StackName"]
-    template_url = event["TemplateUrl"]
     role_to_assume = event.get("RoleToAssume", DEFAULT_ROLE_NAME_TO_ASSUME)
+
+    # Extract TemplateUrl only if it exists under 'Create'
+    create_params = event.get("Create", {})  # Get the 'Create' object, default to empty dict if not present
+    template_url = create_params.get("TemplateUrl", "")  # Get TemplateUrl, default to None if not present
 
     # Extract the execution ID from the event
     execution_arn = event.get('contextDetails', {}).get('arn', '')

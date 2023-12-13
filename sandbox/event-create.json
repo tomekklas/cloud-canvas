@@ -1,8 +1,8 @@
 {
   "StackName": "testing",
-  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/testing-modules-and-deployment/templates/stack.yaml",
   "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
   "Create": {
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/testing-modules-and-deployment/templates/stack.yaml",
     "Include": {
       "Accounts": [
         "907149231270"

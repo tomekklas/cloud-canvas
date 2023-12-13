@@ -1,4 +1,8 @@
+copier copy cloud-canvas ccoe-demo-project --trust
+
+
 Template: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/deployment/templates/stack.yaml
+single-action-run
 
 Params:
 

@@ -1,0 +1,168 @@
+copier copy cloud-canvas ccoe-demo-project --trust
+
+deployment-idea-test-bucket
+
+Template: https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/ccoe-demo-project/v1/_latest/_deployment/templates/stack.yaml
+single-action-run
+
+
+Params:
+
+https://z8btaajavk.execute-api.eu-central-1.amazonaws.com
+7f8g5LXLiJ2QR7biKg42PaHoGsbJxiqDQLNQF9Ri
+v1
+Dev
+
+
+# Create stack
+{
+  "StackName": "spoke-account",
+  "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+  "Create": {
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/ccoe-demo-project/v1/_latest/spoke-resources/templates/stack.yaml",
+    "Include": {
+      "Accounts": [
+        "821373506894"
+      ]
+    },
+    "Parameters": {
+      "Environment": "Dev"
+    },
+    "Tags": {
+      "Key": "Value",
+      "Audience": "CCoE"
+    }
+  }
+}
+
+# Run it again - Action
+
+
+# Remove it:
+{
+  "StackName": "spoke-account",
+  "Delete": {
+    "Include": {
+      "Accounts": [
+        "821373506894"
+      ]
+    }
+  }
+}
+
+# Run it again - Action
+
+
+# Deploy to accounts with tags
+{
+  "StackName": "spoke-account",
+  "Create": {
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/ccoe-demo-project/v1/_latest/spoke-resources/templates/stack.yaml",
+    "Include": {
+      "Tags": {
+        "Owner": "Alan"
+      }
+    },
+    "Parameters": {
+      "Environment": "Dev"
+    },
+    "Tags": {
+      "Key": "Value",
+      "Audience": "CCoE"
+    }
+  }
+}
+
+# Deploy to all org with exclussions
+{
+  "StackName": "spoke-account",
+  "Create": {
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/ccoe-demo-project/v1/_latest/spoke-resources/templates/stack.yaml",
+    "Include": {
+      "OUs": [
+          "r-cevp"
+        ]
+    },
+    "Exclude": {
+      "Accounts": [
+          "680007622252",
+          "978905388603",
+          "487185935295"
+        ],
+        "OUs": [
+          "ou-cevp-nysbgop4"
+        ]
+    },
+    "Parameters": {
+      "Environment": "Dev"
+    },
+    "Tags": {
+      "Key": "Value",
+      "Audience": "CCoE"
+    }
+  }
+}
+
+
+# run this same again with regex in name
+{
+  "StackName": "spoke-(\\w+)",
+  "Create": {
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/ccoe-demo-project/v1/_latest/spoke-resources/templates/stack.yaml",
+    "Include": {
+      "OUs": [
+          "r-cevp"
+        ]
+    },
+    "Exclude": {
+      "Accounts": [
+          "680007622252",
+          "978905388603",
+          "487185935295"
+        ],
+        "OUs": [
+          "ou-cevp-nysbgop4"
+        ]
+    },
+    "Parameters": {
+      "Environment": "Dev"
+    },
+    "Tags": {
+      "Key": "Value",
+      "Audience": "CCoE"
+    }
+  }
+}
+
+# remove all of the stacks except for main account using regex
+
+{
+  "StackName": "spoke-account",
+  "Delete": {
+    "Include": {
+      "OUs": [
+          "r-cevp"
+        ]
+    },
+    "Exclude": {
+      "Accounts": [
+          "821373506894"
+        ]  
+    }
+  }
+}
+
+# Delete everywhere
+{
+  "StackName": "spoke-account",
+  "Delete": {
+    "Include": {
+      "OUs": [
+          "r-cevp"
+        ]
+    }
+  }
+}
+
+
+# run this same again - NoAction

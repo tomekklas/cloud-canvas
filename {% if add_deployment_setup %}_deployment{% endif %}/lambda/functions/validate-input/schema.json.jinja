@@ -2,28 +2,30 @@
     "type": "object",
     "properties": {
         "StackName": {"type": "string"},
-        "TemplateUrl": {
-            "type": "string",
-            "format": "uri",
-            "pattern": "^https://[a-zA-Z0-9.-]+\\.s3\\.[a-zA-Z0-9-]+\\.amazonaws\\.com/[a-zA-Z0-9/._-]+\\.yaml$"
-        },
         "RoleToAssume": {
             "type": "string",
             "pattern": "^[a-zA-Z0-9+=,.@_-]{1,64}$"
         },
         "Create": {
             "type": "object",
+            "required": ["TemplateUrl"],
             "properties": {
-                "CleanseElsewhere": {
-                    "type": ["boolean", "string"],
-                    "enum": [true, "true", "True", false, "false", "False"]
+                "TemplateUrl": {
+                    "type": "string",
+                    "format": "uri",
+                    "pattern": "^https://[a-zA-Z0-9.-]+\\.s3\\.[a-zA-Z0-9-]+\\.amazonaws\\.com/[a-zA-Z0-9/._-]+\\.yaml$"
                 },
                 "Include": {
                     "type": "object",
                     "properties": {
                         "Accounts": {
                             "type": "array",
-                            "items": {"type": "string", "pattern": "^\\d{12}$"}
+                            "items": {
+                                "oneOf": [
+                                    {"type": "string", "pattern": "^\\d{12}$"},
+                                    {"type": "integer"}
+                                ]
+                            }
                         },
                         "OUs": {
                             "type": "array",
@@ -49,7 +51,12 @@
                     "properties": {
                         "Accounts": {
                             "type": "array",
-                            "items": {"type": "string", "pattern": "^\\d{12}$"}
+                            "items": {
+                                "oneOf": [
+                                    {"type": "string", "pattern": "^\\d{12}$"},
+                                    {"type": "integer"}
+                                ]
+                            }
                         },
                         "OUs": {
                             "type": "array",
@@ -70,7 +77,13 @@
                     ],
                     "additionalProperties": false
                 },
-                "Parameters": {"type": "object"},
+                "Parameters": {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[a-zA-Z0-9_-]+$": {"type": "string", "pattern": "^[a-zA-Z0-9_-]+$"}
+                    },
+                    "additionalProperties": false
+                },
                 "Tags": {
                     "type": "object",
                     "patternProperties": {
@@ -79,8 +92,7 @@
                     "additionalProperties": false
                 },
                 "additionalProperties": false
-            },
-            "additionalProperties": false
+            }
         },
         "Delete": {
             "type": "object",
@@ -90,7 +102,12 @@
                     "properties": {
                         "Accounts": {
                             "type": "array",
-                            "items": {"type": "string", "pattern": "^\\d{12}$"}
+                            "items": {
+                                "oneOf": [
+                                    {"type": "string", "pattern": "^\\d{12}$"},
+                                    {"type": "integer"}
+                                ]
+                            }
                         },
                         "OUs": {
                             "type": "array",
@@ -116,7 +133,12 @@
                     "properties": {
                         "Accounts": {
                             "type": "array",
-                            "items": {"type": "string", "pattern": "^\\d{12}$"}
+                            "items": {
+                                "oneOf": [
+                                    {"type": "string", "pattern": "^\\d{12}$"},
+                                    {"type": "integer"}
+                                ]
+                            }
                         },
                         "OUs": {
                             "type": "array",
@@ -152,7 +174,7 @@
             "additionalProperties": false
         }
     },
-    "required": ["StackName", "TemplateUrl", "contextDetails"],
+    "required": ["StackName", "contextDetails"],
     "oneOf": [
         {"required": ["Create"]},
         {"required": ["Delete"]}
