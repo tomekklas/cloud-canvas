@@ -48,6 +48,10 @@ module_type:
   choices:
     - Single
     - Map
+# TODO: think of a better name
+module_execution_order:
+  type: int
+  help: Please indicate order of execution
 
 short_module_description:
   type: str
