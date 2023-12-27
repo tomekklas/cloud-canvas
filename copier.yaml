@@ -8,13 +8,13 @@ _exclude:
   - copier.yaml
   - sandbox
   - demo-data.txt
-  - scripts
+  - ccoe-demo.txt
 
 _jinja_extensions:
     - jinja2_slug.SlugExtension
     - jinja2_time.TimeExtension
 
-_post_generate: scripts/post_generate.py
+# _post_generate: scripts/post_generate.py
 
 # Constants
 CLOUD_CANVAS_TEMPLATE_VERSION:
@@ -95,6 +95,13 @@ add_deployment_setup:
     - Yes
     - No
   default: Yes
+
+deployment_module_type:
+  help: "Define {{ module_name }} module deployment type."
+  when: "{{ add_deployment_setup == True }}"
+  choices:
+    - single
+    - multi
 
 deployment_stack_name_prefix:
   type: str
@@ -207,7 +214,7 @@ _tasks:
     {% endif %}
   - chmod +x codebuild_build.sh 
   - chmod +x local_build.sh
-  # - chmod +x scripts/post_generate.py
-  - >-
-    # Pretty format all cloudformation yaml templates using aws rain
-  # - /usr/bin/python3 scripts/post_generate.py
+  - chmod +x scripts/assemble_step_function.py
+  - python3 scripts/assemble_step_function.py
+
+  # TODO: remove sctipts directory
