@@ -1,6 +1,6 @@
 # copier.yml
 
-_min_copier_version: 8.3.0
+_min_copier_version: 9.1.0
 
 _exclude:
   - notes.txt
@@ -10,9 +10,9 @@ _exclude:
   - demo-data.txt
   - scripts
 
-_jinja_extensions:
-    - jinja2_slug.SlugExtension
-    - jinja2_time.TimeExtension
+# _jinja_extensions:
+#     - jinja2_slug.SlugExtension
+#     - jinja2_time.TimeExtension
 
 _post_generate: scripts/post_generate.py
 
@@ -41,6 +41,13 @@ module_directory_name:
   type: str
   default: "{{ module_name | replace(' ', '-') | regex_replace('[^a-zA-Z0-9-]', '') | lower }}"
   help: Please provide module directory name (suggested based on previous answer)
+
+module_type:
+  type: str
+  help: Please indicate module type
+  choices:
+    - Single
+    - Map
 
 short_module_description:
   type: str
@@ -89,6 +96,7 @@ deployment_prod_bucket:
     The name must be a valid S3 bucket name.
     {% endif %}
 
+# TODO: perhaps this needs to be separated so deployment setup is always there and stack name is part of the payload?
 add_deployment_setup:
   help: Would you like to add scaffolding of deployment setup?
   choices:
@@ -202,7 +210,7 @@ _tasks:
     {% if lambda_names %}
       {% set lambda_list = lambda_names.split(",") %}
       {% for lambda_name in lambda_list %}
-        cp -rf {{ module_directory_name }}/lambda/functions/blueprint {{ module_directory_name }}/lambda/functions/{{ lambda_name|trim|slug }}
+        cp -rf {{ module_directory_name }}/lambda/functions/blueprint {{ module_directory_name }}/lambda/functions/{{ lambda_name|trim }}
       {% endfor %}
     {% endif %}
   - chmod +x codebuild_build.sh 
@@ -211,3 +219,10 @@ _tasks:
   - >-
     # Pretty format all cloudformation yaml templates using aws rain
   # - /usr/bin/python3 scripts/post_generate.py
+
+  - |
+    if [ -f ".copier-answers.yml" ]; then
+        mv .copier-answers.yml "{{module_directory_name}}/.config.yml"
+    else
+        echo "No answers file found to rename."
+    fi
