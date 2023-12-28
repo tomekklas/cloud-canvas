@@ -8,13 +8,12 @@ _exclude:
   - copier.yaml
   - sandbox
   - demo-data.txt
-  - scripts
+  # - scripts
 
 # _jinja_extensions:
 #     - jinja2_slug.SlugExtension
-#     - jinja2_time.TimeExtension
 
-_post_generate: scripts/post_generate.py
+# _post_generate: scripts/post_generate.py
 
 # Constants
 CLOUD_CANVAS_TEMPLATE_VERSION:
@@ -48,6 +47,7 @@ module_type:
   choices:
     - Single
     - Map
+
 # TODO: think of a better name
 module_execution_order:
   type: int
@@ -209,7 +209,7 @@ _message_after_copy: |
     2. Read "CONTRIBUTING.md" and start coding.
 
 _tasks:
-  - >-
+  - |
     # generate lambda directories from blueprint
     {% if lambda_names %}
       {% set lambda_list = lambda_names.split(",") %}
@@ -220,13 +220,8 @@ _tasks:
   - chmod +x codebuild_build.sh 
   - chmod +x local_build.sh
   # - chmod +x scripts/post_generate.py
-  - >-
+  - |
     # Pretty format all cloudformation yaml templates using aws rain
   # - /usr/bin/python3 scripts/post_generate.py
-
-  - |
-    if [ -f ".copier-answers.yml" ]; then
-        mv .copier-answers.yml "{{module_directory_name}}/.config.yml"
-    else
-        echo "No answers file found to rename."
-    fi
+  - bash scripts/move_answers_file.sh {{ module_directory_name }}
+  - python3 scripts/process_step_function.py
