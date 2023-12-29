@@ -8,7 +8,7 @@ mkvirtualenv cc
 
 
 sudo apt install pipx
-pipx install copier
+pipx install copier==v8.3.0
 pipx ensurepath
 source .bashrc
 copier --version
