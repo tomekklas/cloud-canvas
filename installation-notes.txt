@@ -4,6 +4,7 @@ sudo apt -y install python3-virtualenvwrapper
 export WORKON_HOME=~/Envs
 mkdir -p $WORKON_HOME
 source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
+echo "source /usr/share/virtualenvwrapper/virtualenvwrapper.sh" >> ~/.bashrc 
 mkvirtualenv cc
 
 
