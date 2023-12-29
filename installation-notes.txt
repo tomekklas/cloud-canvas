@@ -7,12 +7,15 @@ source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
 echo "source /usr/share/virtualenvwrapper/virtualenvwrapper.sh" >> ~/.bashrc 
 mkvirtualenv cc
 
+workon cc
 
 sudo apt install pipx
 pipx install copier==v8.3.0
 pipx ensurepath
 source .bashrc
 copier --version
+pip install jinja2-slug
+pipx inject copier jinja2-time
 
 https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
 

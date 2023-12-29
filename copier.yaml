@@ -1,6 +1,6 @@
 # copier.yml
 
-_min_copier_version: 9.1.0
+_min_copier_version: 8.3.0
 
 _exclude:
   - notes.txt
@@ -10,8 +10,8 @@ _exclude:
   - demo-data.txt
   # - scripts
 
-# _jinja_extensions:
-#     - jinja2_slug.SlugExtension
+_jinja_extensions:
+    - jinja2_slug.SlugExtension
 
 # _post_generate: scripts/post_generate.py
 
