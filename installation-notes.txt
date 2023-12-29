@@ -1,21 +1,52 @@
+#!/bin/bash
+
+# Update package lists
 sudo apt update
+
+# Install Python 3 pip
 sudo apt install python3-pip
+
+# Install virtualenvwrapper
 sudo apt -y install python3-virtualenvwrapper
+
+# Set up virtual environment wrapper
 export WORKON_HOME=~/Envs
 mkdir -p $WORKON_HOME
+echo "export WORKON_HOME=~/Envs" >> ~/.bashrc
+echo "source /usr/share/virtualenvwrapper/virtualenvwrapper.sh" >> ~/.bashrc
 source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
-echo "source /usr/share/virtualenvwrapper/virtualenvwrapper.sh" >> ~/.bashrc 
+
+# Create a new virtual environment
 mkvirtualenv cc
 
-workon cc
+# Exit virtual environment to install pipx globally
+deactivate
 
+# Install pipx
 sudo apt install pipx
-pipx install copier==v8.3.0
+
+# Ensure pipx paths are set up
 pipx ensurepath
-source .bashrc
-copier --version
+
+# Install Copier with pipx (specify the version if required)
+pipx install copier==8.3.0
+
+# Inject jinja2 and markupsafe into Copier via pipx
+pipx inject copier jinja2
+pipx inject copier markupsafe
+
+# Upgrade Copier to ensure all dependencies are up-to-date
+pipx upgrade copier
+
+# Enter virtual environment to install jinja2-slug
+workon cc
 pip install jinja2-slug
-pipx inject copier jinja2-time
+
+# Exit virtual environment again
+deactivate
+
+# End of script
+
 
 https://docs.github.com/en/authentication/connecting-to-github-with-ssh/generating-a-new-ssh-key-and-adding-it-to-the-ssh-agent
 
