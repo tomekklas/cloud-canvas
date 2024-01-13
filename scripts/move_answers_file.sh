@@ -12,4 +12,4 @@ if [ -n "$1" ]; then
 fi
 
 # TODO: find out why when re-running from existing moduel config, this file re-appears
-rm -f .config.yaml
+# rm -f .config.yaml

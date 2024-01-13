@@ -224,4 +224,4 @@ _tasks:
     # Pretty format all cloudformation yaml templates using aws rain
   # - /usr/bin/python3 scripts/post_generate.py
   - bash scripts/move_answers_file.sh {{ module_directory_name }}
-  - python3 scripts/process_step_function.py
+  # - python3 scripts/process_step_function.py

@@ -7,6 +7,9 @@ def load_json_file(file_path):
         return json.load(file)
 
 def lambda_handler(event, context):
+
+    return event
+    
     try:
         # Load the schema
         schema = load_json_file('schema.json')

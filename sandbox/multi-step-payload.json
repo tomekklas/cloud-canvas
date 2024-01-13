@@ -1,0 +1,42 @@
+{
+  "StackNamePrefix": "ccoe",
+  "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
+  "Steps": [
+    {
+      "StepName": "MasterRole",
+      "Create": {
+        "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/master-role/templates/stack.yaml",
+        "Include": {
+          "Accounts": [
+            "821373506894"
+          ]
+        },
+        "Parameters": {
+          "Environment": "Dev"
+        },
+        "Tags": {
+          "Key": "Value",
+          "Audience": "CCoE"
+        }
+      }
+    },
+    {
+      "StepName": "SpokeSetup",
+      "Create": {
+        "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/spoke-setup/templates/stack.yaml",
+        "Include": {
+          "Accounts": [
+            "821373506894"
+          ]
+        },
+        "Parameters": {
+          "Environment": "Dev"
+        },
+        "Tags": {
+          "Key": "Value",
+          "Audience": "CCoE"
+        }
+      }
+    }
+  ]
+}
