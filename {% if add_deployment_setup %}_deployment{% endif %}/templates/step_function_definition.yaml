@@ -66,13 +66,17 @@ States:
         Get config from S3:
           Type: Task
           Resource: arn:aws:states:::aws-sdk:s3:getObject
-          Next: Check existing setup
+          Next: Batch Delay
           Comment: Retrieve configuration from S3 based on the provided key.
           Parameters:
             Bucket: deployment-idea-test-bucket
             Key.$: $.Key
           ResultSelector:
             Parameters.$: States.StringToJson($.Body)
+        Batch Delay:
+          Type: Wait
+          Next: Check existing setup
+          SecondsPath: $.Parameters.DelayBatch
         Check existing setup:
           Type: Task
           Resource: arn:aws:states:::lambda:invoke

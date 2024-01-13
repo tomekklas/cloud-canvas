@@ -19,7 +19,7 @@ Dev
   "StackName": "spoke-account",
   "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
   "Create": {
-    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/ccoe-demo-project/v1/_latest/spoke-resources/templates/stack.yaml",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/test/templates/stack.yaml",
     "Include": {
       "Accounts": [
         "821373506894"
@@ -57,7 +57,7 @@ Dev
 {
   "StackName": "spoke-account",
   "Create": {
-    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/ccoe-demo-project/v1/_latest/spoke-resources/templates/stack.yaml",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/test/templates/stack.yaml",
     "Include": {
       "Tags": {
         "Owner": "Alan"
@@ -77,7 +77,7 @@ Dev
 {
   "StackName": "spoke-account",
   "Create": {
-    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/ccoe-demo-project/v1/_latest/spoke-resources/templates/stack.yaml",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/test/templates/stack.yaml",
     "Include": {
       "OUs": [
           "r-cevp"
@@ -108,7 +108,7 @@ Dev
 {
   "StackName": "spoke-(\\w+)",
   "Create": {
-    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/ccoe-demo-project/v1/_latest/spoke-resources/templates/stack.yaml",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/test/templates/stack.yaml",
     "Include": {
       "OUs": [
           "r-cevp"

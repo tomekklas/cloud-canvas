@@ -13,8 +13,8 @@ Dev
 
 
 {
-  "StackName": "demo-for-simon",
-  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
+  "StackName": "testing-limits",
+  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/_deployment/templates/stack.yaml",
   "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
   "Create": {
     "Include": {
@@ -26,16 +26,16 @@ Dev
       "Environment": "Dev"
     },
     "Tags": {
-      "Key": "Value",
-      "Name": "Dragan"
+      "Key": "Purpose",
+      "Name": "testing-limits"
     }
   }
 }
 
 # Remove it:
 {
-    "StackName": "demo-for-simon",
-    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
+    "StackName": "testing-limits",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/_deployment/templates/stack.yaml",
     "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
     "Delete": {
       "Include": {
@@ -48,8 +48,8 @@ Dev
 
 # Deploiy to all org
 {
-    "StackName": "demo-for-simon",
-    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
+    "StackName": "testing-limits",
+    "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/_deployment/templates/stack.yaml",
     "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
     "Create": {
       "Include": {
@@ -82,8 +82,8 @@ Dev
   # remove all of the stacks except for main account
 
 {
-  "StackName": "demo-for-simon",
-  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/demo-for-simon/templates/stack.yaml",
+  "StackName": "testing-limits",
+  "TemplateUrl": "https://deployment-idea-test-bucket.s3.eu-central-1.amazonaws.com/xxx/v1/_latest/_deployment/templates/stack.yaml",
   "RoleToAssume": "CloudCanvasGenericCrossAccountAdminRole",
   "Delete": {
     "Include": {

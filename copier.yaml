@@ -12,7 +12,7 @@ _exclude:
 
 _jinja_extensions:
     - jinja2_slug.SlugExtension
-    - jinja2_time.TimeExtension
+    # - jinja2_time.TimeExtension
 
 _post_generate: scripts/post_generate.py
 

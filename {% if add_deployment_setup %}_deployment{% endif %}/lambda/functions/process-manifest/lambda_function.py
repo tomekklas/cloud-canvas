@@ -17,8 +17,8 @@ def lambda_handler(event, context):
     role_to_assume = event.get("RoleToAssume", DEFAULT_ROLE_NAME_TO_ASSUME)
 
     # Extract TemplateUrl only if it exists under 'Create'
-    create_params = event.get("Create", {})  # Get the 'Create' object, default to empty dict if not present
-    template_url = create_params.get("TemplateUrl", "")  # Get TemplateUrl, default to None if not present
+    create_params = event.get("Create", {})  
+    template_url = create_params.get("TemplateUrl", "")
 
     # Extract the execution ID from the event
     execution_arn = event.get('contextDetails', {}).get('arn', '')
@@ -41,33 +41,45 @@ def lambda_handler(event, context):
     # Initialize the S3 client
     s3_client = boto3.client('s3')
 
-    # Loop through each account in final_active_accounts and create a file in S3
+    # Loop through each account in final_active_accounts
     for account in final_active_accounts:
-        # Extract existing tags and add the new tag
-        existing_tags_dict = operation_details.get('Tags', {})
-        existing_tags_dict["DeployedBy"] = "CloudCanvas"  # Add the new tag
+        # Repeat the process 190 times for each account
+        for counter in range(1, 190):
+            # Append the counter to StackName
+            modified_stack_name = f"{stack_prefix}-{counter}"
 
-        # Transform tags into the desired list format
-        transformed_tags = [{"Key": k, "Value": v} for k, v in existing_tags_dict.items()]
+            # Calculate DelayBatch value (increments by 1 every other iteration)
+            delay_batch = (counter + 1) // 2
 
-        # Extract parameters
-        existing_parameters_dict = operation_details.get('Parameters', {})
+            # Extract existing tags and add the new tag
+            existing_tags_dict = operation_details.get('Tags', {})
+            existing_tags_dict["DeployedBy"] = "CloudCanvas"
 
-        # Transform parameters into the desired list format
-        transformed_parameters = [{"ParameterKey": k, "ParameterValue": v} for k, v in existing_parameters_dict.items()]
+            # Transform tags into the desired list format
+            transformed_tags = [{"Key": k, "Value": v} for k, v in existing_tags_dict.items()]
 
-        file_content = json.dumps({
-            "Action": operation_type,
-            "StackName": stack_prefix,
-            "TemplateUrl": template_url,
-            "AccountId": account['id'],
-            "RoleArnToAssume": f"arn:aws:iam::{account['id']}:role/{role_to_assume}",
-            "Parameters": transformed_parameters,
-            "Tags": transformed_tags
-        })
-        s3_key = f"{S3_BUCKET_PREFIX}/{execution_id}/{account['id']}.json"
-        print(s3_key)
-        s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=file_content)
+            # Extract and transform parameters
+            existing_parameters_dict = operation_details.get('Parameters', {})
+            transformed_parameters = [{"ParameterKey": k, "ParameterValue": v} for k, v in existing_parameters_dict.items()]
+
+            # Prepare file content
+            file_content = json.dumps({
+                "Action": operation_type,
+                "StackName": modified_stack_name,
+                "TemplateUrl": template_url,
+                "AccountId": account['id'],
+                "RoleArnToAssume": f"arn:aws:iam::{account['id']}:role/{role_to_assume}",
+                "Parameters": transformed_parameters,
+                "Tags": transformed_tags,
+                "DelayBatch": delay_batch
+            })
+
+            # Create a unique S3 key for each file
+            s3_key = f"{S3_BUCKET_PREFIX}/{execution_id}/{account['id']}-{counter}.json"
+            print(s3_key)  # Logging the S3 key for reference
+
+            # Put the object in S3
+            s3_client.put_object(Bucket=S3_BUCKET, Key=s3_key, Body=file_content)
 
     return {
         'statusCode': 200,
