@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: A CloudFormation template to create an admin role that trusts a specific account.
+
+Parameters:
+  TrustedAccountId:
+    Type: String
+    Description: The AWS account ID that this role will trust.
+
+Resources:
+  AdminRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "CloudCanvasGenericCrossAccountAdminRole"
+      Description: "An admin role that trusts a specific account."
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              AWS: !Sub "arn:aws:iam::${TrustedAccountId}:root"
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+  ############################################
+  # CheckExistingSetup Lambda related
+  CheckExistingSetupLambdaExecutionRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Principal:
+                Service:
+                  - lambda.amazonaws.com
+              Action:
+                - sts:AssumeRole
+        Path: /
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess
+
+  CheckExistingSetupLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: CloudCanvasCheckExistingSetup
+      Description: CheckExistingSetup Lambda
+      Architectures:
+        - arm64
+      Handler: index.lambda_handler
+      MemorySize: 1024
+      Role: !GetAtt CheckExistingSetupLambdaExecutionRole.Arn
+      Runtime: python3.11
+      Timeout: 90
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import re
+
+          def lambda_handler(event, context):
+              # Extract information from the event
+              parameters = event.get("Parameters", {})
+              action = parameters.get("Action")
+              stack_name = parameters.get("StackName")
+              account_id = parameters.get("AccountId")
+
+              # Initialize the CloudFormation client
+              cloudformation = boto3.client("cloudformation")
+
+              # Check if the stack name is a regex
+              if re.match(r"^[^.*+?^${}()|[\]\\]+$", stack_name):
+                  # Not a regex, simple action
+                  return process_stack_name(stack_name, action, cloudformation, event)
+              else:
+                  # It's a regex, scan all stacks
+                  matching_stacks = []
+                  paginator = cloudformation.get_paginator('describe_stacks')
+
+                  for page in paginator.paginate():
+                      for stack in page['Stacks']:
+                          if re.match(stack_name, stack['StackName']):
+                              matching_stacks.append(stack['StackName'])
+
+                  if len(matching_stacks) > 1:
+                      raise Exception(f"Multiple stacks match the regex '{stack_name}': {', '.join(matching_stacks)}")
+                  elif len(matching_stacks) == 1:
+                      # Only one stack matches, use that stack name
+                      return process_stack_name(matching_stacks[0], action, cloudformation, event)
+                  else:
+                    # No stack matches the regex, return NoAction
+                    event["Parameters"]["Action"] = "NoAction"
+                    return event
+
+          def process_stack_name(stack_name, action, cloudformation, event):
+              # The existing functionality to process a specific stack name
+              stack_exists = False
+              try:
+                  response = cloudformation.describe_stacks(StackName=stack_name)
+                  stack_exists = True
+                  # Check the stack status
+                  stack_status = response["Stacks"][0]["StackStatus"]
+                  if stack_status.endswith("FAILED"):
+                      event["Parameters"]["Action"] = "Failed"
+                      return event
+              except cloudformation.exceptions.ClientError as e:
+                  if "does not exist" in str(e):
+                      stack_exists = False
+                  else:
+                      raise e  # Re-raise the exception if it's not a 'does not exist' error
+
+              # Decide the action based on the existence of the stack and the input action
+              updated_action = determine_action(stack_exists, action)
+              event["Parameters"]["Action"] = updated_action
+              event["Parameters"]["StackName"] = stack_name  # Update the StackName in the event
+
+              # Return the modified event
+              return event
+
+          def determine_action(stack_exists, action):
+              if stack_exists:
+                  if action == "Delete":
+                      return "Delete"
+                  elif action == "Create":
+                      return "Update"
+              else:
+                  if action == "Create":
+                      return "Create"
+                  elif action == "Delete":
+                      return "NoAction"
+
+  # CheckExistingSetup Lambda related
+  ############################################
+
+Outputs:
+  AdminRoleArn:
+    Description: "The ARN of the created admin role."
+    Value: !GetAtt AdminRole.Arn
