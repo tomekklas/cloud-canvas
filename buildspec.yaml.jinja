@@ -2,7 +2,7 @@ version: 0.2
 env:
   shell: bash
   variables:
-    VERSION_NUMBER: v1
+    VERSION_NUMBER: {{ PRODUCT_VERSION }}
     PROJECT_SLUG: {{ _copier_conf.dst_path }}
     BUCKET_NAME_DEV: {{ deployment_dev_bucket }}
     BUCKET_NAME_PROD: {{ deployment_prod_bucket }}
@@ -63,30 +63,31 @@ phases:
             local LAMBDA_PATH="$1"
             local ARTIFACT_BUCKET="$2"
             local RELATIVE_PATH=${LAMBDA_PATH#"./"} # Unique identifier for each Lambda
-            local LAMBDA_NAME=$(echo "${RELATIVE_PATH}" | sed 's|/|_|g')
+            local LAMBDA_NAME=$(basename "${RELATIVE_PATH}")
+            local MODULE_NAME=$(dirname "${RELATIVE_PATH}")
 
-            echo "Building lambda: $LAMBDA_NAME in $LAMBDA_PATH"
+            local FULL_LAMBDA_NAME="${MODULE_NAME}/${LAMBDA_NAME}"
+
+            echo "Building lambda: $FULL_LAMBDA_NAME in $LAMBDA_PATH"
             pushd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}" || exit
 
             lambda_identifier=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum | awk '{print $1}')
 
-            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}"
+            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTEFACTS_DIR}/${MODULE_NAME}/${LAMBDA_NAME}"
+
             mkdir -p "${LAMBDA_SAVE_PATH}"
 
             # Echo the mapping in the desired format
-            echo "<<<${LAMBDA_NAME}>>>:${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}/${lambda_identifier}.zip" >> /tmp/lambda_mapping.txt
+            echo "<<<${FULL_LAMBDA_NAME}>>>:${ARTEFACTS_DIR}/${MODULE_NAME}/${LAMBDA_NAME}/${lambda_identifier}.zip" >> /tmp/lambda_mapping.txt
 
-            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}"
-            mkdir -p "${LAMBDA_SAVE_PATH}"
-
-            if aws s3 ls "s3://${ARTIFACT_BUCKET}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}/${lambda_identifier}.zip"; then
+            if aws s3 ls "s3://${ARTIFACT_BUCKET}/${ARTEFACTS_DIR}/${MODULE_NAME}/${LAMBDA_NAME}/${lambda_identifier}.zip"; then
                 echo "Lambda exists in S3, skipping build."
                 popd || exit
                 return
             fi
 
             if [[ -f requirements.txt ]]; then
-                echo "Installing dependencies for $LAMBDA_NAME..."
+                echo "Installing dependencies for $FULL_LAMBDA_NAME..."
                 pip install -r requirements.txt -t lib || { echo "Dependency installation failed"; exit 1; }
             fi
 

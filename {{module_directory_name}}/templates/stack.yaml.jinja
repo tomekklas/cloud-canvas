@@ -69,7 +69,7 @@ Resources:
         - python{{PYTHON_VERSION}}
       Content: 
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: <<<{{ module_name | slug }}_lambda_layers_common>>>
+        S3Key: <<<{{ module_name | slug }}/lambda/layers/common>>>
   # Common Lambda Layer
   ############################################
 {% endif %}
@@ -134,7 +134,7 @@ Resources:
       {%- endif %}
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: <<<{{ module_name | slug}}_lambda_functions_{{ lambda_name | slug }}>>>
+        S3Key: <<<{{ module_name | slug}}/lambda/functions/{{ lambda_name | slug }}>>>
 
   {{ lambda_name | to_camel }}LambdaLogGroup:
     Type: AWS::Logs::LogGroup

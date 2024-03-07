@@ -173,6 +173,7 @@ _tasks:
           cp -rf {{ module_directory_name }}/lambda/functions/blueprint "$destination_dir"
         fi
       {% endfor %}
+      rm -rf {{ module_directory_name }}/lambda/functions/blueprint
     {% endif %}
   - chmod +x codebuild_build.sh 
   - chmod +x local_build.sh
