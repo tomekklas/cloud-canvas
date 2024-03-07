@@ -2,6 +2,10 @@
 
 _min_copier_version: 9.1.1
 
+_jinja_extensions:
+    - jinja2_slug.SlugExtension
+    - jinja2_strcase.StrcaseExtension
+
 # Constants
 CLOUD_CANVAS_TEMPLATE_VERSION:
   type: str
@@ -36,7 +40,6 @@ module_name:
     Module name can not start or end with a space. "Deployment" word is reserved and can not be used.
     {% endif %}
 
-# TODO: on re-generatin this remembers previous invokation value, not current one 
 module_directory_name:
   type: str
   default: "{{ module_name | replace(' ', '-') | regex_replace('[^a-zA-Z0-9-]', '') | lower }}"
@@ -163,14 +166,13 @@ _tasks:
     {% if lambda_names %}
       {% set lambda_list = lambda_names.split(",") %}
       {% for lambda_name in lambda_list %}
-        cp -rf {{ module_directory_name }}/lambda/functions/blueprint {{ module_directory_name }}/lambda/functions/{{ lambda_name|trim }}
+        destination_dir="{{ module_directory_name }}/lambda/functions/{{ lambda_name | slug }}"
+        # Check if the destination directory exists
+        if [ ! -d "$destination_dir" ]; then
+          # Copy the blueprint directory only if the destination directory doesn't exist
+          cp -rf {{ module_directory_name }}/lambda/functions/blueprint "$destination_dir"
+        fi
       {% endfor %}
     {% endif %}
-#   - bash scripts/move_answers_file.sh {{ module_directory_name }}
-  # - chmod +x codebuild_build.sh 
-  # - chmod +x local_build.sh
-  # # - chmod +x scripts/post_generate.py
-  # - |
-  #   # Pretty format all cloudformation yaml templates using aws rain
-  # # - /usr/bin/python3 scripts/post_generate.py
-  # # - python3 scripts/process_step_function.py
+  - chmod +x codebuild_build.sh 
+  - chmod +x local_build.sh
