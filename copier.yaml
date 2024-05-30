@@ -11,6 +11,7 @@ _jinja_extensions:
 _exclude:
   - .env
   - .git
+  - .gitignore
   - extensions.py
   - __pycache__
   - copier.yaml
