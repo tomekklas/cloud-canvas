@@ -5,6 +5,7 @@ env:
     VERSION_NUMBER: {{ PRODUCT_VERSION }}
     PROJECT_SLUG: {{ _copier_conf.dst_path }}
     BUCKET_NAME_DEV: {{ deployment_dev_bucket }}
+    BUCKET_NAME_STAGING: {{ deployment_staging_bucket }}
     BUCKET_NAME_PROD: {{ deployment_prod_bucket }}
   exported-variables:
     - BUILD_ID

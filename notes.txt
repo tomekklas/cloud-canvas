@@ -1,0 +1,1 @@
+https://github.com/level12/copier-py-package/blob/40ca1f0ef87ef4831e6ba27a2f513619f26df6b3/extensions.py

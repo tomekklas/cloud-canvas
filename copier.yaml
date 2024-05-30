@@ -1,16 +1,27 @@
 # copier.yml
 
-_min_copier_version: 9.1.1
+_min_copier_version: 9.2.0
 
 _jinja_extensions:
-    - jinja2_slug.SlugExtension
-    - jinja2_strcase.StrcaseExtension
+  - copier_templates_extensions.TemplateExtensionLoader
+  - extensions.py:GitExtension
+  - extensions.py:SlugifyExtension
+  - extensions.py:CamelCaseExtension
+
+_exclude:
+  - .env
+  - .git
+  - extensions.py
+  - __pycache__
+  - copier.yaml
+  - notes.txt
+  # - scripts/
 
 # Constants
 CLOUD_CANVAS_TEMPLATE_VERSION:
   type: str
   when: false
-  default: v0.1
+  default: v0.8
 
 PRODUCT_VERSION:
   type: str
@@ -34,7 +45,7 @@ _message_before_copy: |
 # Questionnaire
 module_name:
   type: str
-  help: Choose a descriptive name for the module (directory in monorepo approach).
+  help: Choose a descriptive name for the module (root directory in the repository, where project files will reside).
   validator: >-
     {% if not (module_name | regex_search('^(?! *$)(?!deployment$).+$')) %}
     Module name can not start or end with a space. "Deployment" word is reserved and can not be used.
@@ -74,14 +85,23 @@ deployment_dev_bucket:
   type: str
   help: Which DEV bucket will the artifacts be uploaded to?
   validator: >-
-    {% if not (deployment_dev_bucket) %} #  | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')
+    {% if not (deployment_dev_bucket | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')) %}
+    The name must be a valid S3 bucket name.
+    {% endif %}
+
+deployment_staging_bucket:
+  type: str
+  help: Which staging bucket will the artifacts be uploaded to?
+  default: "{{ deployment_dev_bucket }}"
+  validator: >-
+    {% if not (deployment_staging_bucket | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')) %}
     The name must be a valid S3 bucket name.
     {% endif %}
 
 deployment_prod_bucket:
   type: str
   help: Which PROD bucket will the artifacts be uploaded to? It defaults to the dev bucket.
-  default: "{{ deployment_dev_bucket }}"
+  default: "{{ deployment_staging_bucket }}"
   validator: >-
     {% if not (deployment_prod_bucket | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')) %}
     The name must be a valid S3 bucket name.
@@ -162,11 +182,14 @@ _message_after_copy: |
 
 _tasks:
   - |
-    # generate lambda directories from blueprint
+    # generate lambda directories from ___blueprint___
     {% if lambda_names %}
       {% set lambda_list = lambda_names.split(",") %}
       {% for lambda_name in lambda_list %}
-        destination_dir="{{ module_directory_name }}/lambda/functions/{{ lambda_name | slug }}"
+        lambda_name="{{ lambda_name | trim }}"
+        lambda_slug=$(scripts/slugify.sh "$lambda_name")
+        echo ## ${lambda_slug}
+        destination_dir="{{ module_directory_name }}/lambda/functions/${lambda_slug}"
         # Check if the destination directory exists
         if [ ! -d "$destination_dir" ]; then
           # Copy the blueprint directory only if the destination directory doesn't exist
@@ -177,3 +200,4 @@ _tasks:
     {% endif %}
   - chmod +x codebuild_build.sh 
   - chmod +x local_build.sh
+  - rm -rf scripts/
