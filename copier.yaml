@@ -1,57 +1,61 @@
 # copier.yml
 
-_min_copier_version: 8.3.0
-
-_exclude:
-  - notes.txt
-  - .git*
-  - copier.yaml
-  - sandbox
-  - demo-data.txt
-  # - scripts
+_min_copier_version: 9.2.0
 
 _jinja_extensions:
-    - jinja2_slug.SlugExtension
+  - copier_templates_extensions.TemplateExtensionLoader
+  - extensions.py:GitExtension
+  - extensions.py:SlugifyExtension
+  - extensions.py:CamelCaseExtension
 
-# _post_generate: scripts/post_generate.py
+_exclude:
+  - .env
+  - .git
+  - .gitignore
+  - extensions.py
+  - __pycache__
+  - copier.yaml
+  - notes.txt
+  # - scripts/
 
 # Constants
 CLOUD_CANVAS_TEMPLATE_VERSION:
   type: str
   when: false
-  default: v0.1
+  default: v0.8
 
-PRODUCT_VERSION: # perhasp this should be one of the questions?
+PRODUCT_VERSION:
   type: str
   when: false
   default: v1
 
+PYTHON_VERSION:
+  type: str
+  when: false
+  default: 3.11
+
+
+_message_before_copy: |
+    Thank you for generating a project using Cloud Canvas.
+
+    You'll be asked a series of questions whose answers will be used to
+    generate a tailored project for you.
+
+    If modules need to be added at later date, just re-run this command.
+
 # Questionnaire
 module_name:
   type: str
-  help: Choose a descriptive name for the module.
+  help: Choose a descriptive name for the module (root directory in the repository, where project files will reside).
   validator: >-
     {% if not (module_name | regex_search('^(?! *$)(?!deployment$).+$')) %}
     Module name can not start or end with a space. "Deployment" word is reserved and can not be used.
     {% endif %}
 
-# TODO: on re-generatin this remembers previous invokation value, not current one 
 module_directory_name:
   type: str
   default: "{{ module_name | replace(' ', '-') | regex_replace('[^a-zA-Z0-9-]', '') | lower }}"
   help: Please provide module directory name (suggested based on previous answer)
-
-module_type:
-  type: str
-  help: Please indicate module type
-  choices:
-    - Single
-    - Map
-
-# TODO: think of a better name
-module_execution_order:
-  type: int
-  help: Please indicate order of execution
 
 short_module_description:
   type: str
@@ -78,54 +82,30 @@ include_common_lambda_layer:
     - No
   default: Yes
 
-common_lambda_layer_name:
-  type: str
-  when: "{{ include_lambda_scaffolding == True and include_common_lambda_layer == True }}"
-  help: Please provide name of the lambda layer function.
-
 deployment_dev_bucket:
   type: str
   help: Which DEV bucket will the artifacts be uploaded to?
   validator: >-
-    {% if not (deployment_dev_bucket) %} #  | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')
+    {% if not (deployment_dev_bucket | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')) %}
+    The name must be a valid S3 bucket name.
+    {% endif %}
+
+deployment_staging_bucket:
+  type: str
+  help: Which staging bucket will the artifacts be uploaded to?
+  default: "{{ deployment_dev_bucket }}"
+  validator: >-
+    {% if not (deployment_staging_bucket | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')) %}
     The name must be a valid S3 bucket name.
     {% endif %}
 
 deployment_prod_bucket:
   type: str
   help: Which PROD bucket will the artifacts be uploaded to? It defaults to the dev bucket.
-  default: "{{ deployment_dev_bucket }}"
+  default: "{{ deployment_staging_bucket }}"
   validator: >-
     {% if not (deployment_prod_bucket | regex_search('^(?=.{3,63}$)[a-z0-9][a-z0-9.-]*[a-z0-9]$')) %}
     The name must be a valid S3 bucket name.
-    {% endif %}
-
-# TODO: perhaps this needs to be separated so deployment setup is always there and stack name is part of the payload?
-add_deployment_setup:
-  help: Would you like to add scaffolding of deployment setup?
-  choices:
-    - Yes
-    - No
-  default: Yes
-
-deployment_stack_name_prefix:
-  type: str
-  when: "{{ add_deployment_setup == True }}"
-  help: Defines CloudFormation stack prefix.
-  # default: "{{ _copier_conf.dst_path }}-deployment"
-  validator: >-
-    {% if not (deployment_stack_name_prefix) %}
-    The name must be specified.
-    {% endif %}
-
-deployment_default_role_to_assume:
-  type: str
-  when: "{{ add_deployment_setup == True }}"
-  help: Role to assume when deploing to other accounts
-  default: "CloudCanvasGenericCrossAccountAdminRole"
-  validator: >-
-    {% if not (deployment_default_role_to_assume) %}
-    The name must be specified.
     {% endif %}
 
 owner_name:
@@ -189,14 +169,6 @@ copyright_license:
     - The Unlicense
     - zlib License
 
-_message_before_copy: |
-    Thank you for generating a project using Cloud Canvas.
-
-    You'll be asked a series of questions whose answers will be used to
-    generate a tailored project for you.
-
-    If modules need to be added at later date, just re-run this command.
-
 _message_after_copy: |
     Your project "{{ _copier_conf.dst_path }}" has been created successfully!
 
@@ -208,20 +180,25 @@ _message_after_copy: |
 
     2. Read "CONTRIBUTING.md" and start coding.
 
+
 _tasks:
   - |
-    # generate lambda directories from blueprint
+    # generate lambda directories from ___blueprint___
     {% if lambda_names %}
       {% set lambda_list = lambda_names.split(",") %}
       {% for lambda_name in lambda_list %}
-        cp -rf {{ module_directory_name }}/lambda/functions/blueprint {{ module_directory_name }}/lambda/functions/{{ lambda_name|trim }}
+        lambda_name="{{ lambda_name | trim }}"
+        lambda_slug=$(scripts/slugify.sh "$lambda_name")
+        echo ## ${lambda_slug}
+        destination_dir="{{ module_directory_name }}/lambda/functions/${lambda_slug}"
+        # Check if the destination directory exists
+        if [ ! -d "$destination_dir" ]; then
+          # Copy the blueprint directory only if the destination directory doesn't exist
+          cp -rf {{ module_directory_name }}/lambda/functions/blueprint "$destination_dir"
+        fi
       {% endfor %}
+      rm -rf {{ module_directory_name }}/lambda/functions/blueprint
     {% endif %}
   - chmod +x codebuild_build.sh 
   - chmod +x local_build.sh
-  # - chmod +x scripts/post_generate.py
-  - |
-    # Pretty format all cloudformation yaml templates using aws rain
-  # - /usr/bin/python3 scripts/post_generate.py
-  - bash scripts/move_answers_file.sh {{ module_directory_name }}
-  - python3 scripts/process_step_function.py
+  - rm -rf scripts/

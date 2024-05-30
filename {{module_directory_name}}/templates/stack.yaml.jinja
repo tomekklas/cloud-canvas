@@ -3,10 +3,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::LanguageExtensions
 Description: >-   
   {% if short_module_description %}{{ short_module_description }}{% endif %}
-{%- macro path_safe(name) %}
-  {{- name | trim | replace(" ", "-") | replace("/", "-") | replace("\\", "-") | replace(":", "-") | replace("*", "-") | replace("?", "-") | replace("\"", "-") | replace("<", "-") | replace(">", "-") | replace("|", "-") }}
-{%- endmacro %}
-{%- set module_name_path_safe = path_safe(module_name) %}
 
 Metadata:
   {% if owner_name %}Author: {{ owner_name }}{% endif %}
@@ -61,20 +57,19 @@ Mappings:
 
 Resources:
 {%- if include_common_lambda_layer %}
-{%- set shared_lambda_name_path_safe = path_safe(common_lambda_layer_name) %}
   ############################################
   # Common Lambda Layer
   CommonLambdaLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      Description: {{ module_name }} - Common Lambda Layer
+      Description: Common Lambda Layer
       CompatibleArchitectures:
         - arm64
       CompatibleRuntimes: 
-        - python3.11
+        - python{{PYTHON_VERSION}}
       Content: 
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: <<<{{- module_name_path_safe -}}_lambda_layers_{{- shared_lambda_name_path_safe -}}>>>
+        S3Key: <<<{{ module_name | slugify }}/lambda/layers/common>>>
   # Common Lambda Layer
   ############################################
 {% endif %}
@@ -82,15 +77,13 @@ Resources:
 {%- if include_lambda_scaffolding %}
 {%- set lambda_list = lambda_names.split(",") %}
 {%- for lambda_name in lambda_list %}
-{%- set cleaned_lambda_name = lambda_name | trim | title | replace(" ", "")  %}
-{%- set lambda_name_path_safe = path_safe(lambda_name) %}
   ############################################
-  # {{ cleaned_lambda_name }} Lambda related
-  {{ cleaned_lambda_name }}LambdaExecutionRole:
+  # {{ lambda_name | to_camel }} Lambda related
+  {{ lambda_name | to_camel }}LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: 2012-10-17
         Statement:
         - Effect: Allow
           Principal:
@@ -98,13 +91,13 @@ Resources:
             - lambda.amazonaws.com
           Action:
           - sts:AssumeRole
-      Path: "/"
+      Path: /
       ManagedPolicyArns:
         - !If [ IsDev, arn:aws:iam::aws:policy/AdministratorAccess, !Ref AWS::NoValue ]
       Policies:
       - PolicyName: AllowLambdaLogs
         PolicyDocument:
-          Version: '2012-10-17'
+          Version: 2012-10-17
           Statement:
           - Effect: Allow
             Action:
@@ -113,52 +106,50 @@ Resources:
             - logs:PutLogEvents
             Resource: arn:aws:logs:*:*:*
 
-  {{ cleaned_lambda_name }}Lambda:
+  {{ lambda_name | to_camel }}Lambda:
     Type: AWS::Lambda::Function
     Properties:
-      Description: {{ cleaned_lambda_name }} Lambda
+      Description: {{ lambda_name | to_camel }} Lambda
       Handler: lambda_function.lambda_handler
       MemorySize: 1024
+      Runtime: python3.11
+      Timeout: 90
       Architectures:
         - arm64
       LoggingConfig:
-        ApplicationLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
+        ApplicationLogLevel: !FindInMap [Environment, !Ref Environment, StateMachineLogLevel]
         LogFormat: JSON
         LogGroup: 
           !Join 
-            - '/' 
-            - - '/aws/lambda/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}' 
-              - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
-              - "{{ module_name_path_safe }}"
-              - '{{ cleaned_lambda_name }}'
-        SystemLogLevel: !FindInMap [Environment, !Ref "Environment", StateMachineLogLevel]
-      Role: !GetAtt {{ cleaned_lambda_name }}LambdaExecutionRole.Arn
+            - /
+            - - /aws/lambda/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}
+              - !Select [4, !Split [-, !Select [2, !Split [/, !Ref AWS::StackId]]]]
+              - {{ module_name | slugify }}
+              - {{ lambda_name | to_camel }}
+        SystemLogLevel: !FindInMap [Environment, !Ref Environment, StateMachineLogLevel]
+      Role: !GetAtt {{ lambda_name | to_camel }}LambdaExecutionRole.Arn
       {%- if include_common_lambda_layer %}
       Layers:
         - !Ref CommonLambdaLayer
       {%- endif %}
-      Runtime: python3.11
-      Timeout: 90
       Code:
         S3Bucket: <<<ARTIFACT_BUCKET>>>
-        S3Key: <<<{{ module_name_path_safe }}_lambda_functions_{{ lambda_name_path_safe }}>>>
+        S3Key: <<<{{ module_name | slugify}}/lambda/functions/{{ lambda_name | slugify }}>>>
 
-  {{ cleaned_lambda_name }}LambdaLogGroup:
+  {{ lambda_name | to_camel }}LambdaLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
       RetentionInDays: !Ref LogRetentionInDays
       LogGroupName: !Join
-                      - '/' 
-                      - - '/aws/lambda/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}' 
-                        - !Select [4, !Split ['-', !Select ['2', !Split ['/', !Ref 'AWS::StackId']]]]
-                        - "{{ module_name_path_safe }}"
-                        - '{{ cleaned_lambda_name }}'
-
-  # {{ cleaned_lambda_name }} Lambda related
+                      - /
+                      - - /aws/lambda/{{ _copier_conf.dst_path }}/{{ PRODUCT_VERSION }}
+                        - !Select [4, !Split [-, !Select [2, !Split [/, !Ref AWS::StackId]]]]
+                        - {{ module_name | slugify }}
+                        - {{ lambda_name | to_camel }}
+  # {{ lambda_name | to_camel }} Lambda related
   ############################################
 {% endfor %}
 {%- endif -%}
-
 
 Outputs:
   InstallationId:

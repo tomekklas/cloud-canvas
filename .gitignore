@@ -1,1 +1,3 @@
-./build-and-run.sh
+# .gitignore file
+
+__pycache__

@@ -2,10 +2,11 @@ version: 0.2
 env:
   shell: bash
   variables:
-    VERSION_NUMBER: v1
+    VERSION_NUMBER: {{ PRODUCT_VERSION }}
     PROJECT_SLUG: {{ _copier_conf.dst_path }}
-    BUCKET_NAME_DEV: {{ deployment_dev_bucket }}
-    BUCKET_NAME_PROD: {{ deployment_prod_bucket }}
+    BUCKET_NAME_DEV: {{ deployment_dev_bucket | trim }}
+    BUCKET_NAME_STAGING: {{ deployment_staging_bucket | trim }}
+    BUCKET_NAME_PROD: {{ deployment_prod_bucket | trim }}
   exported-variables:
     - BUILD_ID
     - BUILD_ID_DIR
@@ -46,14 +47,33 @@ phases:
             ARTIFACT_BUCKET=${BUCKET_NAME_DEV}
             BUILD_ID="local-$(date +%Y%m%d%H%M%S)"
         fi
+
+        # overwriting tmp
+        if [ "$ENVIRONMENT" = "production" ]; then
+          echo "Building for production"
+          ARTIFACT_BUCKET=${BUCKET_NAME_PROD}
+          BUILD_ID=$(echo $CODEBUILD_BUILD_ID | cut -d ':' -f 2)
+        elif [ "$ENVIRONMENT" = "test" ]; then
+          echo "Building for test"
+          ARTIFACT_BUCKET=${BUCKET_NAME_DEV}
+          BUILD_ID=$(echo $CODEBUILD_BUILD_ID | cut -d ':' -f 2)
+        else
+          echo "Building for development"
+          # Development build commands
+        fi
+
         export BUILD_ID_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/"
         export LATEST_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_latest/"
-        export ARTEFACTS_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_artefacts"
+        export ARTIFACTS_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_artifacts"
         export ARTIFACT_BUCKET
-        mkdir -p "$BUILD_ID_DIR" "$LATEST_DIR" "$ARTEFACTS_DIR"
+        mkdir -p "$BUILD_ID_DIR" "$LATEST_DIR" "$ARTIFACTS_DIR"
 
         BUILD_DATE=$(date +%Y-%m-%d)
         export BUILD_DATE
+
+        printenv
+
+
   build:
     commands:
       - echo "Initiating Lambda build and packaging process..."
@@ -63,30 +83,31 @@ phases:
             local LAMBDA_PATH="$1"
             local ARTIFACT_BUCKET="$2"
             local RELATIVE_PATH=${LAMBDA_PATH#"./"} # Unique identifier for each Lambda
-            local LAMBDA_NAME=$(echo "${RELATIVE_PATH}" | sed 's|/|_|g')
+            local LAMBDA_NAME=$(basename "${RELATIVE_PATH}")
+            local MODULE_NAME=$(dirname "${RELATIVE_PATH}")
 
-            echo "Building lambda: $LAMBDA_NAME in $LAMBDA_PATH"
+            local FULL_LAMBDA_NAME="${MODULE_NAME}/${LAMBDA_NAME}"
+
+            echo "Building lambda: $FULL_LAMBDA_NAME in $LAMBDA_PATH"
             pushd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}" || exit
 
             lambda_identifier=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum | awk '{print $1}')
 
-            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}"
+            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTIFACTS_DIR}/${RELATIVE_PATH}"
+
             mkdir -p "${LAMBDA_SAVE_PATH}"
 
             # Echo the mapping in the desired format
-            echo "<<<${LAMBDA_NAME}>>>:${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}/${lambda_identifier}.zip" >> /tmp/lambda_mapping.txt
+            echo "<<<${FULL_LAMBDA_NAME}>>>:${ARTIFACTS_DIR}/${RELATIVE_PATH}/${lambda_identifier}.zip" >> /tmp/lambda_mapping.txt
 
-            local LAMBDA_SAVE_PATH="${CODEBUILD_SRC_DIR}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}"
-            mkdir -p "${LAMBDA_SAVE_PATH}"
-
-            if aws s3 ls "s3://${ARTIFACT_BUCKET}/${ARTEFACTS_DIR}/lambda/${LAMBDA_NAME}/${lambda_identifier}.zip"; then
+            if aws s3 ls "s3://${ARTIFACT_BUCKET}/${ARTIFACTS_DIR}/${RELATIVE_PATH}/${lambda_identifier}.zip"; then
                 echo "Lambda exists in S3, skipping build."
                 popd || exit
                 return
             fi
 
             if [[ -f requirements.txt ]]; then
-                echo "Installing dependencies for $LAMBDA_NAME..."
+                echo "Installing dependencies for $FULL_LAMBDA_NAME..."
                 pip install -r requirements.txt -t lib || { echo "Dependency installation failed"; exit 1; }
             fi
 
@@ -98,7 +119,7 @@ phases:
             fi
 
             rm -rf lib
-            zip -g "${lambda_identifier}.zip" * || { echo "Zipping failed"; exit 1; }
+            zip -gr "${lambda_identifier}.zip" * || { echo "Zipping failed"; exit 1; }
             rm -f lambda_function.py
             popd || exit
 
@@ -112,12 +133,19 @@ phases:
 
       - echo "Replacing placeholders in configuration files..."
       - |-
-        sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" $(find . -type f) || { echo "Placeholder replacement failed"; exit 1; }
-        sed -i "s/<<<ARTIFACT_BUCKET>>>/$ARTIFACT_BUCKET/g" $(find . -type f) || { echo "Placeholder replacement failed"; exit 1; }
-        sed -i "s/<<<BUILD_DATE>>>/$BUILD_DATE/g" $(find . -type f) || { echo "Placeholder replacement failed"; exit 1; }
+        find . -type f | while read -r file; do
+          sed -i "s/<<<BUILD_ID>>>/$BUILD_ID/g" "$file" || exit 1
+          sed -i "s/<<<ARTIFACT_BUCKET>>>/$ARTIFACT_BUCKET/g" "$file" || exit 1
+          sed -i "s/<<<BUILD_DATE>>>/$BUILD_DATE/g" "$file" || exit 1
+          sed -i "s/<<<VERSION_NUMBER>>>/$VERSION_NUMBER/g" "$file" || exit 1
+          sed -i "s/<<<PROJECT_SLUG>>>/$PROJECT_SLUG/g" "$file" || exit 1
+        done
 
       - echo "Processing lambda_mapping.txt for Lambda name replacement..."
       - |-
+        echo ####
+        cat /tmp/lambda_mapping.txt
+        echo ####
         if [ -s /tmp/lambda_mapping.txt ]; then
             while IFS=":" read -r original_name new_name; do
                 find . -type f -name "*.yaml" -exec sed -i "s|${original_name}|${new_name}|g" {} \; || { echo "Lambda name replacement failed"; exit 1; }
@@ -137,10 +165,14 @@ phases:
       - echo "Preparing directory structure for S3 upload..."
       - |-
         find . -mindepth 1 -maxdepth 1 -type d ! -name "${PROJECT_SLUG##*/}" -exec rsync -rvam {} "${BUILD_ID_DIR}/" \;
-        rsync -rva "${BUILD_ID_DIR}/" "${LATEST_DIR}/"
 
+        echo rsync -rva "${BUILD_ID_DIR}" "${LATEST_DIR}"
+        rsync -rva --exclude="${PROJECT_SLUG}/lambda" "${BUILD_ID_DIR}" "${LATEST_DIR}"
+        find .
       - echo "Uploading build artifacts to S3..."
-      - aws s3 cp --recursive "${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}" "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}"
+      - aws s3 sync "./${PROJECT_SLUG}" "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}"
+
+      - cat ${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}/_latest/templates/stack.yaml
 
   post_build:
     commands:
@@ -149,5 +181,5 @@ phases:
 
 # artifacts:
 #   discard-paths: no
-#   base-directory: ${CODEBUILD_SRC_DIR}
-#   files: ${SOURCE_PATH}/**
+#   files: 
+#     - ${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}/_latest/templates/stack.template.yaml
