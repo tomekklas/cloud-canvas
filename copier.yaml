@@ -4,9 +4,9 @@ _min_copier_version: 9.2.0
 
 _jinja_extensions:
   - copier_templates_extensions.TemplateExtensionLoader
-  - extensions.py:GitExtension
-  - extensions.py:SlugifyExtension
-  - extensions.py:CamelCaseExtension
+  - scripts/extensions.py:GitExtension
+  - scripts/extensions.py:SlugifyExtension
+  - scripts/extensions.py:CamelCaseExtension
 
 _exclude:
   - .env
@@ -199,6 +199,7 @@ _tasks:
       {% endfor %}
       rm -rf {{ module_directory_name }}/lambda/functions/blueprint
     {% endif %}
-  - chmod +x codebuild_build.sh 
+  - chmod +x scripts/codebuild_build.sh
   - chmod +x local_build.sh
+  - mv scripts/codebuild_build.sh .
   - rm -rf scripts/
