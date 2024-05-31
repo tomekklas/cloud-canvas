@@ -21,7 +21,7 @@ def slugify(value, separator='-'):
 def to_camel(value):
     value = re.sub(r'[^a-zA-Z0-9\s]', '', value)
     parts = value.split()
-    return parts[0].lower() + ''.join(part.title() for part in parts[1:])
+    return parts[0].title() + ''.join(part.title() for part in parts[1:])
 
 class GitExtension(Extension):
     def __init__(self, environment):
