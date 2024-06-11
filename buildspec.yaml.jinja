@@ -170,6 +170,9 @@ phases:
         rsync -rva --exclude="${PROJECT_SLUG}/lambda" "${BUILD_ID_DIR}" "${LATEST_DIR}"
         find .
       - echo "Uploading build artifacts to S3..."
+
+      - find "./${PROJECT_SLUG}"
+
       - aws s3 sync "./${PROJECT_SLUG}" "s3://${ARTIFACT_BUCKET}/${PROJECT_SLUG}"
 
       - cat ${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}/_latest/templates/stack.yaml
