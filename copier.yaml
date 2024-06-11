@@ -9,7 +9,6 @@ _jinja_extensions:
   - scripts/extensions.py:CamelCaseExtension
 
 _exclude:
-  - .env
   - .git
   - .gitignore
   - extensions.py
