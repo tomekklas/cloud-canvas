@@ -21,7 +21,7 @@ _exclude:
 CLOUD_CANVAS_TEMPLATE_VERSION:
   type: str
   when: false
-  default: v0.8
+  default: v1.0
 
 PRODUCT_VERSION:
   type: str
