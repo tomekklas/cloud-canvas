@@ -32,6 +32,7 @@ phases:
     commands:
       - echo "Setting up environment variables and determining build context..."
       - |-
+        # Determine if running in AWS CodeBuild environment
         if [[ ! -z $CODEBUILD_BUILD_ID && $CODEBUILD_BUILD_ID != local:00000000-0000-0000-0000-000000000000 ]]; then
             BUILD_ARN=$(aws codebuild batch-get-builds --ids "$CODEBUILD_BUILD_ID" --query 'builds[0].arn' --output text)
             if [ "$BUILD_ARN" != "None" ]; then
@@ -49,7 +50,7 @@ phases:
             BUILD_ID="local-$(date +%Y%m%d%H%M%S)"
         fi
 
-        # Overwriting temporary values
+        # Override temporary values based on the environment
         if [ "$ENVIRONMENT" = "production" ]; then
           echo "Building for production"
           ARTIFACT_BUCKET=${BUCKET_NAME_PROD}
@@ -60,76 +61,124 @@ phases:
           BUILD_ID=$(echo $CODEBUILD_BUILD_ID | cut -d ':' -f 2)
         else
           echo "Building for development"
-          # Development build commands
         fi
 
+        # Set and export environment variables
         export BUILD_ID_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/${BUILD_ID}/"
         export LATEST_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_latest/"
         export ARTIFACTS_DIR="${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}/_artifacts"
         export ARTIFACTS_BUCKET_DIR="${PROJECT_SLUG}/${VERSION_NUMBER}/_artifacts"
-
         export ARTIFACT_BUCKET
+        export BUILD_DATE=$(date +%Y-%m-%d)
+
+        # Create necessary directories
         mkdir -p "$BUILD_ID_DIR" "$LATEST_DIR" "$ARTIFACTS_DIR"
 
-        BUILD_DATE=$(date +%Y-%m-%d)
-        export BUILD_DATE
-
+        # Print all environment variables
         printenv | sort
 
   build:
     commands:
       - echo "Initiating Lambda build and packaging process..."
-      - |-
-        echo "Building Lambda functions"
 
-        build_lambda() {
+      - |-
+        echo "Building Lambda functions and layers"
+
+        build_lambda_function() {
           local LAMBDA_PATH="$1"
           local ARTIFACT_BUCKET="$2"
 
-          # Change to the right directory
-          cd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}" || exit
+          # Change to the function directory
+          cd "${CODEBUILD_SRC_DIR}/${LAMBDA_PATH}" || exit 1
 
-          # Build resulting zip hash
+          # Generate zip hash
           LAMBDA_HASH=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum | awk '{print $1}')
 
-          # Build resulting zip path
+          # Set the zip path
           LAMBDA_ZIP_PATH="${ARTIFACTS_DIR}/${LAMBDA_PATH}/${LAMBDA_HASH}.zip"
 
-          # Build template placeholder key 
+          # Set the placeholder key
           LAMBDA_PLACEHOLDER_KEY="${MODULE_NAME}/${LAMBDA_PATH}"
 
-          # Write placeholder replacement to /tmp/lambda_mapping.txt
+          # Write placeholder replacement
           echo "<<<${LAMBDA_PLACEHOLDER_KEY}>>>:${ARTIFACTS_BUCKET_DIR}/${LAMBDA_PATH}/${LAMBDA_HASH}.zip" >> /tmp/lambda_mapping.txt
 
+          # Skip build if the artifact already exists in S3
           if aws s3 ls "s3://${ARTIFACT_BUCKET}/${ARTIFACTS_BUCKET_DIR}/${LAMBDA_PATH}/${LAMBDA_HASH}.zip"; then
-              echo "Lambda exists in S3, skipping build."
-              cd - || exit
+              echo "Lambda function exists in S3, skipping build."
+              cd - || exit 1
               return
           fi
 
+          # Install dependencies if requirements.txt is present
           if [[ -f requirements.txt ]]; then
               echo "Installing dependencies for ${LAMBDA_PATH}..."
               pip install -r requirements.txt -t lib || { echo "Dependency installation failed"; exit 1; }
           fi
 
+          # Create zip package
           echo "Zipping deployment package..."
           if [[ -d lib ]] && find lib -mindepth 1 -maxdepth 1 | read; then
-              pushd lib || exit
+              pushd lib || exit 1
               zip -r9 "../${LAMBDA_HASH}.zip" . || { echo "Zipping failed"; popd; exit 1; }
-              popd || exit
+              popd || exit 1
           fi
-
           zip -r9 "${LAMBDA_HASH}.zip" * || { echo "Zipping lambda failed"; exit 1; }
 
-          # Move the resulting zip to the artifacts directory
+          # Move the zip to the artifacts directory
           mkdir -p "${ARTIFACTS_DIR}/${LAMBDA_PATH}"
           mv "${LAMBDA_HASH}.zip" "${ARTIFACTS_DIR}/${LAMBDA_PATH}/"
 
+          cd - || exit 1
         }
 
-        find . -type d -regex '.*/lambda/functions/[^/]*$' -or -regex '.*/lambda/layers/[^/]*$' | sed 's|^\./||' | while read -r DIR_PATH; do
-          echo "Building lambda: ${DIR_PATH}"
-          build_lambda "${DIR_PATH}" "${ARTIFACT_BUCKET}"
+        build_lambda_layer() {
+          local LAYER_PATH="$1"
+          local ARTIFACT_BUCKET="$2"
+
+          # Change to the layer directory
+          cd "${CODEBUILD_SRC_DIR}/${LAYER_PATH}" || exit 1
+
+          # Generate zip hash
+          LAYER_HASH=$(find . -type f -exec md5sum {} \; | sort -k 2 | md5sum | awk '{print $1}')
+
+          # Set the zip path
+          LAYER_ZIP_PATH="${ARTIFACTS_DIR}/${LAYER_PATH}/${LAYER_HASH}.zip"
+
+          # Set the placeholder key
+          LAYER_PLACEHOLDER_KEY="${MODULE_NAME}/${LAYER_PATH}"
+
+          # Write placeholder replacement
+          echo "<<<${LAYER_PLACEHOLDER_KEY}>>>:${ARTIFACTS_BUCKET_DIR}/${LAYER_PATH}/${LAYER_HASH}.zip" >> /tmp/lambda_mapping.txt
+
+          # Skip build if the artifact already exists in S3
+          if aws s3 ls "s3://${ARTIFACT_BUCKET}/${ARTIFACTS_BUCKET_DIR}/${LAYER_PATH}/${LAYER_HASH}.zip"; then
+              echo "Lambda layer exists in S3, skipping build."
+              cd - || exit 1
+              return
+          fi
+
+          # Create zip package
+          echo "Zipping layer package..."
+          zip -r9 "${LAYER_HASH}.zip" * || { echo "Zipping layer failed"; exit 1; }
+
+          # Move the zip to the artifacts directory
+          mkdir -p "${ARTIFACTS_DIR}/${LAYER_PATH}"
+          mv "${LAYER_HASH}.zip" "${ARTIFACTS_DIR}/${LAYER_PATH}/"
+
+          cd - || exit 1
+        }
+
+        # Build Lambda functions
+        find . -type d -regex '.*/lambda/functions/[^/]*$' | sed 's|^\./||' | while read -r DIR_PATH; do
+          echo "Building lambda function: ${DIR_PATH}"
+          build_lambda_function "${DIR_PATH}" "${ARTIFACT_BUCKET}"
+        done
+
+        # Build Lambda layers
+        find . -type d -regex '.*/lambda/layers/[^/]*$' | sed 's|^\./||' | while read -r DIR_PATH; do
+          echo "Building lambda layer: ${DIR_PATH}"
+          build_lambda_layer "${DIR_PATH}" "${ARTIFACT_BUCKET}"
         done
 
       - echo "Replacing placeholders in configuration files..."
@@ -176,4 +225,4 @@ phases:
 artifacts:
   discard-paths: no
   files: 
-    - ${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}/_latest/templates/stack.template.yaml
+    - ${CODEBUILD_SRC_DIR}/${PROJECT_SLUG}/${VERSION_NUMBER}/_latest/templates/stack.yaml
