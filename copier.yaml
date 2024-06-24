@@ -33,7 +33,6 @@ PYTHON_VERSION:
   when: false
   default: 3.11
 
-
 _message_before_copy: |
     Thank you for generating a project using Cloud Canvas.
 
